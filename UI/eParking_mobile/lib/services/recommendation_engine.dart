@@ -50,6 +50,10 @@ class RecommendationEngine {
       }
     }
 
+    final maxAvailableSpots = overviews
+        .map((o) => o.availableSpots)
+        .fold(0, (max, n) => n > max ? n : max);
+
     final displays = overviews.map((overview) {
       final lot = overview.toParkingLot();
       final lotSpots = spotsByLot[lot.id] ?? [];
@@ -64,6 +68,7 @@ class RecommendationEngine {
       final score = _scoreLot(
         features: features,
         availableSpots: overview.availableSpots,
+        maxAvailableSpots: maxAvailableSpots,
         preferences: preferences,
         profile: profile,
         distanceKm: distanceKm,
@@ -80,29 +85,32 @@ class RecommendationEngine {
       );
     }).toList();
 
-    if (preferences.preferNearby) {
-      displays.sort((a, b) {
+    displays.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      if (preferences.preferNearby) {
         final da = a.distanceKm ?? double.infinity;
         final db = b.distanceKm ?? double.infinity;
-        if (da != db) return da.compareTo(db);
-        return b.score.compareTo(a.score);
-      });
-    } else {
-      displays.sort((a, b) => b.score.compareTo(a.score));
-    }
+        return da.compareTo(db);
+      }
+      return a.lot.name.compareTo(b.lot.name);
+    });
+
+    final topPickLotId = displays
+        .where((d) => d.score > 0)
+        .map((d) => d.lot.id)
+        .firstOrNull;
 
     var usedEv = false;
     var usedAffordable = false;
     var usedCovered = false;
     final strings = AppStrings.current;
 
-    return displays.asMap().entries.map((entry) {
-      final index = entry.key;
-      final item = entry.value;
+    return displays.map((item) {
       var badge = RecommendationBadge.none;
       String? hint;
 
-      if (index == 0 && item.score > 0) {
+      if (item.lot.id == topPickLotId) {
         badge = RecommendationBadge.topPick;
         hint = _topPickHint(strings, item.features, profile, preferences);
       } else if (preferences.preferEvCharging && item.features.hasEv && !usedEv) {
@@ -200,13 +208,17 @@ class RecommendationEngine {
   static int _scoreLot({
     required _LotFeatures features,
     required int availableSpots,
+    required int maxAvailableSpots,
     required UserPreferences preferences,
     required _UserContentProfile profile,
     required double? distanceKm,
     required int reservationCount,
     required int viewCount,
   }) {
-    var score = availableSpots;
+    // Normalizirano 0–20: veliki parking ne dominira sam brojem mjesta.
+    var score = maxAvailableSpots <= 0
+        ? 0
+        : ((availableSpots / maxAvailableSpots) * 20).round();
 
     // Karakteristike lokacije (content-based)
     if (preferences.preferEvCharging && features.hasEv) score += 12;

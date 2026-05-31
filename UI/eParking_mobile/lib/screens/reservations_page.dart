@@ -106,17 +106,23 @@ class _ReservationsPageState extends State<ReservationsPage> {
 
   static String _statusLabel(Reservation r, AppStrings s) {
     if (r.isCancelled) return 'Otkazano';
-    if (r.isCompleted) return 'Završeno';
+    if (r.status == 'Completed') return 'Završeno';
     if (r.isPending) return s.statusPending;
-    if (r.isConfirmed) return s.statusConfirmed;
+    if (r.isConfirmed) {
+      if (!reservationIsNotEnded(r.endDate)) return 'Potvrđeno (isteklo)';
+      return s.statusConfirmed;
+    }
     return r.status;
   }
 
   static Color _statusColor(Reservation r) {
     if (r.isCancelled) return Colors.red.shade400;
-    if (r.isCompleted) return Colors.green.shade600;
+    if (r.status == 'Completed') return Colors.green.shade600;
     if (r.isPending) return Colors.orange.shade700;
-    if (r.isConfirmed) return Colors.teal.shade600;
+    if (r.isConfirmed) {
+      if (!reservationIsNotEnded(r.endDate)) return Colors.blue.shade700;
+      return Colors.teal.shade600;
+    }
     return Colors.grey.shade600;
   }
 

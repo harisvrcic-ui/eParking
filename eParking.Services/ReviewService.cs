@@ -134,10 +134,12 @@ namespace eParking.Services
 
         private async Task EnsureCompletedReservationAsync(int userId, int parkingLotId)
         {
+            var now = ReservationTimeHelper.UtcNow;
             var hasCompleted = await _context.Reservations.AnyAsync(r =>
                 r.Car.UserId == userId &&
-                r.Status == (int)ReservationStatus.Completed &&
-                r.ParkingSpot.Zone.ParkingLotId == parkingLotId);
+                r.ParkingSpot.Zone.ParkingLotId == parkingLotId &&
+                (r.Status == (int)ReservationStatus.Completed ||
+                 (r.Status == (int)ReservationStatus.Confirmed && r.EndDate <= now)));
 
             if (!hasCompleted)
                 throw new BusinessException(

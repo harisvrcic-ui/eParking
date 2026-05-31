@@ -10,10 +10,12 @@ import '../models/review.dart';
 import '../core/parking_data_refresh.dart';
 import '../services/location_service.dart';
 import '../services/parking_service.dart';
+import '../models/reservation.dart';
 import '../services/reservation_service.dart';
 import '../services/favorite_service.dart';
 import '../services/review_service.dart';
 import '../services/view_history_service.dart';
+import '../utils/reservation_time.dart';
 import '../widgets/detail_info_row.dart';
 import '../widgets/form_navigation.dart';
 import '../widgets/review_editor_dialog.dart';
@@ -67,6 +69,21 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
     super.dispose();
   }
 
+  bool _sameParkingLot(Reservation r) {
+    if (r.parkingLotId == widget.lotId) return true;
+    if (r.parkingLotId != 0) return false;
+    final lotName = r.parkingLotName.trim().toLowerCase();
+    final target = widget.lotName.trim().toLowerCase();
+    return lotName.isNotEmpty && lotName == target;
+  }
+
+  bool _reservationAllowsReview(Reservation r) {
+    if (!_sameParkingLot(r)) return false;
+    if (r.status == 'Completed') return true;
+    if (r.status == 'Confirmed' && !reservationIsNotEnded(r.endDate)) return true;
+    return false;
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -87,9 +104,7 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
         }
       }
 
-      final canReview = reservations.any(
-        (r) => r.parkingLotId == widget.lotId && r.status == 'Completed',
-      );
+      final canReview = reservations.any(_reservationAllowsReview);
 
       String? distanceLabel;
       var km = LocationService.demoDistanceKmForParkir(detail.name);

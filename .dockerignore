@@ -1,0 +1,17 @@
+**/.git
+**/.vs
+**/.idea
+**/bin
+**/obj
+**/.dart_tool
+**/build
+**/node_modules
+UI/
+**/*.user
+**/*.suo
+**/terminals
+**/.cursor
+**/agent-transcripts
+**/*.md
+!README.md
+docker-compose*.override.yml

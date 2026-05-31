@@ -1,0 +1,46 @@
+# RS2 3.3 — lokalna konfiguracija (ne commituj tajne)
+.env
+*.env.local
+.env.zip
+
+# Lokalne credencijale / privremeni fajlovi (nalozi su u README.md)
+username i pw.txt
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+TestResults/
+.vs/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+**/ios/Pods/
+**/ios/.symlinks/
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+*.iml
+
+# IDE
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs / temp
+*.log
+tmp/
+temp/

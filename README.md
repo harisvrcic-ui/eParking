@@ -158,11 +158,9 @@ Ako port **1433** na hostu već koristi lokalni SQL Server, zaustavi ga ili prom
 
 | Kontekst | Korisničko ime | Lozinka | JWT rola | Aplikacija |
 |----------|----------------|---------|----------|------------|
-| Desktop verzija | `desktop` | `test` | **Admin** | Desktop → `POST /Auth/admin-login` |
-| Mobilna verzija | `mobile` | `test` | **User** | Mobile → `POST /Auth/login` |
-| Više korisničkih uloga | `admin` | `admin` | **Admin** | Desktop (alias) |
-| Više korisničkih uloga | `user` | `user` | **User** | Mobile (alias) |
-| Više korisničkih uloga | `haris` | `haris` | **User** | Mobile (dodatni demo) |
+| Desktop verzija | `admin` | `admin` | **Admin** | Desktop → `POST /Auth/admin-login` |
+| Mobilna verzija | `user`  | `user`  | **User** | Mobile → `POST /Auth/login` |
+| Korisnik        | `haris` | `haris` | **User** | Mobile (dodatni demo) |
 
 Uloge u JWT-u odgovaraju seed podacima: `IsAdmin=true` → rola `Admin`, `IsUser=true` → rola `User` (vidi `AppRoles` i `JwtTokenService`).
 

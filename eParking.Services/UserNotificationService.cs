@@ -22,7 +22,10 @@ namespace eParking.Services
 
         public async Task<PagedResponse<UserNotificationResponse>> GetAllAsync(UserNotificationSearch? search = null)
         {
-            var query = _context.UserNotifications.AsNoTracking().AsQueryable();
+            var query = _context.UserNotifications
+                .AsNoTracking()
+                .Include(n => n.User)
+                .AsQueryable();
 
             if (search?.UserId.HasValue == true)
                 query = query.Where(n => n.UserId == search.UserId.Value);
@@ -35,6 +38,8 @@ namespace eParking.Services
                 {
                     Id = n.Id,
                     UserId = n.UserId,
+                    UserFullName = n.User != null ? (n.User.FirstName + " " + n.User.LastName) : string.Empty,
+                    Username = n.User != null ? n.User.Username : string.Empty,
                     ReservationId = n.ReservationId,
                     Title = n.Title,
                     Body = n.Body,
@@ -55,6 +60,7 @@ namespace eParking.Services
         public async Task<UserNotificationResponse> GetByIdAsync(int id)
         {
             var n = await _context.UserNotifications.AsNoTracking()
+                .Include(x => x.User)
                 .FirstOrDefaultAsync(x => x.Id == id)
                 ?? throw new NotFoundException($"Notification with id {id} not found.");
 
@@ -62,6 +68,8 @@ namespace eParking.Services
             {
                 Id = n.Id,
                 UserId = n.UserId,
+                UserFullName = n.User != null ? (n.User.FirstName + " " + n.User.LastName) : string.Empty,
+                Username = n.User?.Username ?? string.Empty,
                 ReservationId = n.ReservationId,
                 Title = n.Title,
                 Body = n.Body,

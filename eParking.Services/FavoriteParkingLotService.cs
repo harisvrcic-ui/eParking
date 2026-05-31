@@ -22,6 +22,7 @@ namespace eParking.Services
         {
             var query = _context.FavoriteParkingLots
                 .AsNoTracking()
+                .Include(x => x.User)
                 .Include(x => x.ParkingLot)
                 .AsQueryable();
 
@@ -36,6 +37,8 @@ namespace eParking.Services
                 {
                     Id = x.Id,
                     UserId = x.UserId,
+                    UserFullName = x.User != null ? (x.User.FirstName + " " + x.User.LastName) : string.Empty,
+                    Username = x.User != null ? x.User.Username : string.Empty,
                     ParkingLotId = x.ParkingLotId,
                     ParkingLotName = x.ParkingLot != null ? x.ParkingLot.Name : string.Empty,
                     CreatedAt = x.CreatedAt
@@ -47,6 +50,7 @@ namespace eParking.Services
         {
             var entity = await _context.FavoriteParkingLots
                 .AsNoTracking()
+                .Include(x => x.User)
                 .Include(x => x.ParkingLot)
                 .FirstOrDefaultAsync(x => x.Id == id)
                 ?? throw new NotFoundException($"FavoriteParkingLot with id {id} not found.");
@@ -55,6 +59,8 @@ namespace eParking.Services
             {
                 Id = entity.Id,
                 UserId = entity.UserId,
+                UserFullName = entity.User != null ? (entity.User.FirstName + " " + entity.User.LastName) : string.Empty,
+                Username = entity.User?.Username ?? string.Empty,
                 ParkingLotId = entity.ParkingLotId,
                 ParkingLotName = entity.ParkingLot?.Name ?? string.Empty,
                 CreatedAt = entity.CreatedAt

@@ -8,7 +8,9 @@ import '../widgets/dialog_helpers.dart';
 import '../widgets/profile_image_helper.dart';
 import 'login_screen.dart';
 import 'profile_edit_screen.dart';
+import 'profile_favorites_screen.dart';
 import 'profile_notifications_screen.dart';
+import 'profile_view_history_screen.dart';
 import 'vehicles_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -149,6 +151,30 @@ class _ProfilePageState extends State<ProfilePage> {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => VehiclesPage(userId: widget.user.id),
+                    ),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+              _ProfileMenuTile(
+                icon: Icons.favorite_outline,
+                title: s.myFavorites,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ProfileFavoritesScreen(userId: widget.user.id),
+                    ),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+              _ProfileMenuTile(
+                icon: Icons.history,
+                title: s.viewHistory,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ProfileViewHistoryScreen(userId: widget.user.id),
                     ),
                   );
                 },

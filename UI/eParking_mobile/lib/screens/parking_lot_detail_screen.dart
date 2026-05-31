@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../l10n/app_strings.dart';
 import '../l10n/locale_controller.dart';
+import '../models/favorite_parking_lot.dart';
 import '../models/parking_location.dart';
 import '../models/parking_lot_detail.dart';
 import '../models/review.dart';
@@ -10,6 +11,7 @@ import '../core/parking_data_refresh.dart';
 import '../services/location_service.dart';
 import '../services/parking_service.dart';
 import '../services/reservation_service.dart';
+import '../services/favorite_service.dart';
 import '../services/review_service.dart';
 import '../services/view_history_service.dart';
 import '../widgets/detail_info_row.dart';
@@ -38,8 +40,11 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
   final _locationService = LocationService();
   final _reviewService = ReviewService();
   final _reservationService = ReservationService();
+  final _favoriteService = FavoriteService();
 
   ParkingLotDetail? _detail;
+  FavoriteParkingLot? _favorite;
+  bool _favoriteBusy = false;
   List<ParkingLocationSummary> _locations = [];
   List<Review> _reviews = [];
   Review? _myReview;
@@ -72,6 +77,7 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
       final detail = await _parkingService.getParkingLotDetail(widget.lotId);
       final reviews = await _reviewService.getForParkingLot(widget.lotId);
       final reservations = await _reservationService.getMyReservations();
+      final favorite = await _favoriteService.findForLot(widget.lotId);
 
       Review? myReview;
       for (final review in reviews) {
@@ -113,6 +119,7 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
           _myReview = myReview;
           _canReview = canReview;
           _distanceLabel = distanceLabel;
+          _favorite = favorite;
           _loading = false;
         });
       }
@@ -123,6 +130,35 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _toggleFavorite(AppStrings s) async {
+    if (_favoriteBusy) return;
+    setState(() => _favoriteBusy = true);
+    try {
+      if (_favorite != null) {
+        await _favoriteService.remove(_favorite!.id);
+        if (!mounted) return;
+        setState(() => _favorite = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.removedFromFavorites)),
+        );
+      } else {
+        final added = await _favoriteService.add(widget.lotId);
+        if (!mounted) return;
+        setState(() => _favorite = added);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.addedToFavorites)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _favoriteBusy = false);
     }
   }
 
@@ -148,7 +184,26 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
       builder: (context, _) {
         final s = context.s;
         return Scaffold(
-          appBar: formScreenAppBar(context, title: widget.lotName),
+          appBar: formScreenAppBar(
+            context,
+            title: widget.lotName,
+            actions: [
+              if (!_loading && _error == null)
+                IconButton(
+                  icon: _favoriteBusy
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _favorite != null ? Icons.favorite : Icons.favorite_border,
+                          color: _favorite != null ? Colors.red : null,
+                        ),
+                  onPressed: _favoriteBusy ? null : () => _toggleFavorite(s),
+                ),
+            ],
+          ),
           body: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null

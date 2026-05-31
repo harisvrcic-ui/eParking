@@ -103,6 +103,16 @@ abstract class AppStrings {
   String get vehicleAdded;
   String get vehicleUpdated;
   String get myVehicles;
+  String get myFavorites;
+  String get myFavoritesTitle;
+  String get noFavorites;
+  String get addedToFavorites;
+  String get removedFromFavorites;
+  String get viewHistory;
+  String get viewHistoryTitle;
+  String get noViewHistory;
+  String viewCountLabel(int count);
+  String lastViewedLabel(String when);
   String get notifications;
   String get signOut;
 
@@ -384,6 +394,26 @@ class AppStringsBs extends AppStrings {
   String get vehicleUpdated => 'Vozilo je uspješno ažurirano.';
   @override
   String get myVehicles => 'Moja vozila';
+  @override
+  String get myFavorites => 'Omiljena parkirališta';
+  @override
+  String get myFavoritesTitle => 'Omiljena parkirališta';
+  @override
+  String get noFavorites => 'Nemate sačuvanih parkirališta.';
+  @override
+  String get addedToFavorites => 'Dodano u omiljena.';
+  @override
+  String get removedFromFavorites => 'Uklonjeno iz omiljenih.';
+  @override
+  String get viewHistory => 'Historija pregleda';
+  @override
+  String get viewHistoryTitle => 'Historija pregleda';
+  @override
+  String get noViewHistory => 'Još niste pregledali nijedno parkiralište.';
+  @override
+  String viewCountLabel(int count) => 'Pregleda: $count';
+  @override
+  String lastViewedLabel(String when) => 'Zadnji put: $when';
   @override
   String get notifications => 'Obavještenja';
   @override
@@ -772,6 +802,26 @@ class AppStringsEn extends AppStrings {
   String get vehicleUpdated => 'Vehicle updated successfully.';
   @override
   String get myVehicles => 'My vehicles';
+  @override
+  String get myFavorites => 'Favorite parking lots';
+  @override
+  String get myFavoritesTitle => 'Favorite parking lots';
+  @override
+  String get noFavorites => 'You have no saved parking lots.';
+  @override
+  String get addedToFavorites => 'Added to favorites.';
+  @override
+  String get removedFromFavorites => 'Removed from favorites.';
+  @override
+  String get viewHistory => 'View history';
+  @override
+  String get viewHistoryTitle => 'View history';
+  @override
+  String get noViewHistory => 'You have not viewed any parking lots yet.';
+  @override
+  String viewCountLabel(int count) => 'Views: $count';
+  @override
+  String lastViewedLabel(String when) => 'Last viewed: $when';
   @override
   String get notifications => 'Notifications';
   @override

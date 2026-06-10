@@ -30,7 +30,9 @@ namespace eParking.Services
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request, bool requireAdmin = false)
         {
-            var username = request.Username.Trim();
+            var username = StringNormalization.TrimOrEmpty(request.Username);
+            if (username.Length == 0 || string.IsNullOrEmpty(request.Password))
+                throw new UnauthorizedAccessException("Invalid username or password.");
             var user = await _context.MyAppUsers
                 .FirstOrDefaultAsync(u => u.Username == username);
 
@@ -63,17 +65,12 @@ namespace eParking.Services
 
         public async Task<LoginResponse> RegisterAsync(RegisterRequest request)
         {
-            var username = request.Username.Trim();
-            var email = request.Email.Trim();
+            var username = StringNormalization.TrimOrEmpty(request.Username);
+            var email = StringNormalization.TrimOrEmpty(request.Email);
+            var firstName = StringNormalization.TrimOrEmpty(request.FirstName);
+            var lastName = StringNormalization.TrimOrEmpty(request.LastName);
 
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(request.Password))
-                throw new BusinessException("Username and password are required.");
-
-            if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
-                throw new BusinessException("First name and last name are required.");
-
-            if (string.IsNullOrWhiteSpace(email))
-                throw new BusinessException("Email is required.");
+            PasswordValidation.EnsureValid(request.Password);
 
             var exists = await _context.MyAppUsers.AnyAsync(u =>
                 u.Username == username || u.Email == email);
@@ -96,10 +93,12 @@ namespace eParking.Services
                 Username = username,
                 PasswordSalt = salt,
                 PasswordHash = hash,
-                FirstName = request.FirstName.Trim(),
-                LastName = request.LastName.Trim(),
+                FirstName = firstName,
+                LastName = lastName,
                 Email = email,
-                PhoneNumber = request.PhoneNumber,
+                PhoneNumber = StringNormalization.TrimOrEmpty(request.PhoneNumber) is { Length: > 0 } phone
+                    ? phone
+                    : null,
                 GenderId = request.GenderId,
                 CityId = request.CityId,
                 IsAdmin = false,
@@ -185,8 +184,7 @@ namespace eParking.Services
             if (!Regex.IsMatch(code, @"^\d{6}$"))
                 throw new BusinessException("Kod mora imati tačno 6 cifara (npr. 123456).");
 
-            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-                throw new BusinessException("Nova lozinka mora imati najmanje 6 znakova.");
+            PasswordValidation.EnsureValid(request.NewPassword);
 
             if (request.NewPassword != request.ConfirmPassword)
                 throw new BusinessException("Nova lozinka i potvrda se ne podudaraju — unesite istu lozinku u oba polja.");

@@ -56,13 +56,16 @@ namespace eParking.Services
             await ValidateReferencesAsync(request.BrandId, request.ColorId, request.UserId);
             await EnsureLicensePlateUniqueAsync(request.LicensePlate);
 
+            var model = StringNormalization.TrimOrEmpty(request.Model);
+            var licensePlate = StringNormalization.TrimOrEmpty(request.LicensePlate).ToUpperInvariant();
+
             var entity = new Car
             {
                 BrandId = request.BrandId,
                 ColorId = request.ColorId,
                 UserId = request.UserId,
-                Model = request.Model.Trim(),
-                LicensePlate = request.LicensePlate.Trim().ToUpperInvariant(),
+                Model = model,
+                LicensePlate = licensePlate,
                 // Legacy DB column is NOT NULL; default when mobile/form omits year.
                 YearOfManufacture = request.YearOfManufacture ?? DateTime.UtcNow.Year,
                 Picture = BinaryFieldHelper.FromApiImageString(request.Picture),
@@ -89,8 +92,8 @@ namespace eParking.Services
             entity.BrandId = request.BrandId;
             entity.ColorId = request.ColorId;
             entity.UserId = request.UserId;
-            entity.Model = request.Model.Trim();
-            entity.LicensePlate = request.LicensePlate.Trim().ToUpperInvariant();
+            entity.Model = StringNormalization.TrimOrEmpty(request.Model);
+            entity.LicensePlate = StringNormalization.TrimOrEmpty(request.LicensePlate).ToUpperInvariant();
             entity.YearOfManufacture = request.YearOfManufacture ?? entity.YearOfManufacture ?? DateTime.UtcNow.Year;
             entity.Picture = BinaryFieldHelper.FromApiImageString(request.Picture);
             entity.IsActive = request.IsActive;
@@ -157,9 +160,11 @@ namespace eParking.Services
                 throw new NotFoundException($"User with id {userId} not found.");
         }
 
-        private async Task EnsureLicensePlateUniqueAsync(string licensePlate, int? excludeId = null)
+        private async Task EnsureLicensePlateUniqueAsync(string? licensePlate, int? excludeId = null)
         {
-            var plate = licensePlate.Trim().ToUpperInvariant();
+            var plate = StringNormalization.TrimOrEmpty(licensePlate).ToUpperInvariant();
+            if (plate.Length == 0)
+                throw new BusinessException("License plate is required.");
             var exists = await _context.Cars.AnyAsync(c =>
                 c.LicensePlate == plate && (!excludeId.HasValue || c.Id != excludeId.Value));
 

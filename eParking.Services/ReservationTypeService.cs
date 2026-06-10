@@ -36,7 +36,7 @@ namespace eParking.Services
             ValidateBillingUnit(request.BillingUnit);
             var entity = new ReservationType
             {
-                Name = request.Name.Trim(),
+                Name = StringNormalization.TrimOrEmpty(request.Name),
                 Price = request.Price,
                 BillingUnit = request.BillingUnit,
                 CreatedAt = DateTime.UtcNow
@@ -51,7 +51,7 @@ namespace eParking.Services
             var entity = await _context.ReservationTypes.FindAsync(request.Id)
                 ?? throw new NotFoundException($"ReservationType with id {request.Id} not found.");
             ValidateBillingUnit(request.BillingUnit);
-            entity.Name = request.Name.Trim();
+            entity.Name = StringNormalization.TrimOrEmpty(request.Name);
             entity.Price = request.Price;
             entity.BillingUnit = request.BillingUnit;
             entity.UpdatedAt = DateTime.UtcNow;

@@ -177,10 +177,11 @@ namespace eParking.Services
 
         public Task<ReservationResponse> CancelAsync(int id, ReservationCancelRequest request, int actorUserId, bool isAdmin)
         {
-            if (string.IsNullOrWhiteSpace(request.Reason))
+            var reason = StringNormalization.TrimOrEmpty(request.Reason);
+            if (reason.Length == 0)
                 throw new BusinessException("Cancellation reason is required.");
 
-            return ChangeStatusAsync(id, ReservationStatus.Cancelled, actorUserId, request.Reason.Trim(),
+            return ChangeStatusAsync(id, ReservationStatus.Cancelled, actorUserId, reason,
                 isAdmin, isReject: false);
         }
 
@@ -215,10 +216,11 @@ namespace eParking.Services
 
         public Task<ReservationResponse> RejectAsync(int id, ReservationRejectRequest request, int actorUserId)
         {
-            if (string.IsNullOrWhiteSpace(request.Reason))
+            var reason = StringNormalization.TrimOrEmpty(request.Reason);
+            if (reason.Length == 0)
                 throw new BusinessException("Rejection reason is required.");
 
-            return ChangeStatusAsync(id, ReservationStatus.Cancelled, actorUserId, request.Reason.Trim(),
+            return ChangeStatusAsync(id, ReservationStatus.Cancelled, actorUserId, reason,
                 isAdmin: true, isReject: true);
         }
 

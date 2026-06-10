@@ -55,20 +55,27 @@ namespace eParking.Services
 
         public async Task<MyAppUserResponse> InsertAsync(MyAppUserInsertRequest request)
         {
-            await ValidateUserAsync(request.Username, request.Email);
+            var username = StringNormalization.TrimOrEmpty(request.Username);
+            var email = StringNormalization.TrimOrEmpty(request.Email);
+            var firstName = StringNormalization.TrimOrEmpty(request.FirstName);
+            var lastName = StringNormalization.TrimOrEmpty(request.LastName);
+            var phoneNumber = StringNormalization.TrimOrEmpty(request.PhoneNumber);
+
+            await ValidateUserAsync(username, email);
             await ValidateLookupsAsync(request.GenderId, request.CityId);
 
+            PasswordValidation.EnsureValid(request.Password);
             PasswordHasher.CreateHash(request.Password, out var salt, out var hash);
 
             var entity = new MyAppUser
             {
-                Username = request.Username.Trim(),
+                Username = username,
                 PasswordSalt = salt,
                 PasswordHash = hash,
-                FirstName = request.FirstName.Trim(),
-                LastName = request.LastName.Trim(),
-                Email = request.Email.Trim(),
-                PhoneNumber = request.PhoneNumber,
+                FirstName = firstName,
+                LastName = lastName,
+                Email = email,
+                PhoneNumber = phoneNumber.Length > 0 ? phoneNumber : null,
                 GenderId = request.GenderId,
                 CityId = request.CityId,
                 IsAdmin = request.IsAdmin,
@@ -90,14 +97,20 @@ namespace eParking.Services
             if (entity == null)
                 throw new NotFoundException($"User with id {request.Id} not found.");
 
-            await ValidateUserAsync(request.Username, request.Email, request.Id);
+            var username = StringNormalization.TrimOrEmpty(request.Username);
+            var email = StringNormalization.TrimOrEmpty(request.Email);
+            var firstName = StringNormalization.TrimOrEmpty(request.FirstName);
+            var lastName = StringNormalization.TrimOrEmpty(request.LastName);
+            var phoneNumber = StringNormalization.TrimOrEmpty(request.PhoneNumber);
+
+            await ValidateUserAsync(username, email, request.Id);
             await ValidateLookupsAsync(request.GenderId, request.CityId);
 
-            entity.Username = request.Username.Trim();
-            entity.FirstName = request.FirstName.Trim();
-            entity.LastName = request.LastName.Trim();
-            entity.Email = request.Email.Trim();
-            entity.PhoneNumber = request.PhoneNumber;
+            entity.Username = username;
+            entity.FirstName = firstName;
+            entity.LastName = lastName;
+            entity.Email = email;
+            entity.PhoneNumber = phoneNumber.Length > 0 ? phoneNumber : null;
             entity.GenderId = request.GenderId;
             entity.CityId = request.CityId;
             entity.IsAdmin = request.IsAdmin;
@@ -105,9 +118,10 @@ namespace eParking.Services
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            if (!string.IsNullOrWhiteSpace(request.Password))
+            var newPassword = PasswordValidation.NormalizeOptional(request.Password);
+            if (newPassword != null)
             {
-                PasswordHasher.CreateHash(request.Password, out var salt, out var hash);
+                PasswordHasher.CreateHash(newPassword, out var salt, out var hash);
                 entity.PasswordSalt = salt;
                 entity.PasswordHash = hash;
             }
@@ -126,8 +140,7 @@ namespace eParking.Services
             if (string.IsNullOrWhiteSpace(currentPassword))
                 throw new BusinessException("Trenutna lozinka je obavezna.");
 
-            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
-                throw new BusinessException("Nova lozinka mora imati najmanje 6 znakova.");
+            PasswordValidation.EnsureValid(newPassword);
 
             if (!PasswordHasher.Verify(currentPassword, entity.PasswordSalt, entity.PasswordHash))
                 throw new UnauthorizedAccessException("Trenutna lozinka nije ispravna.");
@@ -210,8 +223,11 @@ namespace eParking.Services
 
         private async Task ValidateUserAsync(string username, string email, int? excludeId = null)
         {
+            var normalizedUsername = StringNormalization.TrimOrEmpty(username);
+            var normalizedEmail = StringNormalization.TrimOrEmpty(email);
+
             var exists = await _context.MyAppUsers.AnyAsync(u =>
-                (u.Username == username.Trim() || u.Email == email.Trim()) &&
+                (u.Username == normalizedUsername || u.Email == normalizedEmail) &&
                 (!excludeId.HasValue || u.Id != excludeId.Value));
 
             if (exists)

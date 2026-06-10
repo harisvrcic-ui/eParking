@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../core/api_client.dart';
+import '../core/api_error_parser.dart';
 import '../models/login_response.dart';
 
 class ForgotPasswordResult {
@@ -36,13 +37,12 @@ class AuthService {
       return user;
     }
 
-    String message = 'Prijava nije uspjela.';
-    try {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      message = body['message'] as String? ?? message;
-    } catch (_) {}
-
-    throw Exception(message);
+    throw Exception(
+      ApiErrorParser.parseResponse(
+        response,
+        fallback: 'Prijava nije uspjela.',
+      ),
+    );
   }
 
   Future<LoginResponse> register({
@@ -81,13 +81,12 @@ class AuthService {
       return user;
     }
 
-    String message = 'Registracija nije uspjela.';
-    try {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      message = body['message'] as String? ?? message;
-    } catch (_) {}
-
-    throw Exception(message);
+    throw Exception(
+      ApiErrorParser.parseResponse(
+        response,
+        fallback: 'Registracija nije uspjela.',
+      ),
+    );
   }
 
   Future<ForgotPasswordResult> forgotPassword({required String email}) async {
@@ -106,7 +105,7 @@ class AuthService {
       );
     }
 
-    throw Exception(_parseApiError(response));
+    throw Exception(ApiErrorParser.parseResponse(response));
   }
 
   Future<void> resetPassword({
@@ -128,18 +127,7 @@ class AuthService {
     );
 
     if (response.statusCode == 204) return;
-    throw Exception(_parseApiError(response));
-  }
-
-  static String _parseApiError(http.Response response) {
-    try {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final detail = body['detail'] as String?;
-      if (detail != null && detail.isNotEmpty) return detail;
-      final message = body['message'] as String?;
-      if (message != null && message.isNotEmpty) return message;
-    } catch (_) {}
-    return 'Operacija nije uspjela.';
+    throw Exception(ApiErrorParser.parseResponse(response));
   }
 
   static Future<void> logout() async {

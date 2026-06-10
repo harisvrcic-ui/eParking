@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../core/api_client.dart';
+import '../core/api_error_parser.dart';
 import '../models/login_response.dart';
 
 class AuthService {
@@ -26,13 +27,12 @@ class AuthService {
       return user;
     }
 
-    String message = 'Prijava nije uspjela.';
-    try {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      message = body['message'] as String? ?? message;
-    } catch (_) {}
-
-    throw Exception(message);
+    throw Exception(
+      ApiErrorParser.parseResponse(
+        response,
+        fallback: 'Prijava nije uspjela.',
+      ),
+    );
   }
 
   static Future<void> logout() async {

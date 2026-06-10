@@ -20,18 +20,9 @@ public class ParkingSpotsController
     }
 
     [HttpGet("available")]
-    public async Task<ActionResult<PagedResponse<ParkingSpotResponse>>> GetAvailable([FromQuery] ParkingSpotAvailabilitySearch search)
-    {
-        try
-        {
-            var results = await _parkingSpotService.GetAvailableAsync(search);
-            return Ok(results);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
+    public async Task<ActionResult<PagedResponse<ParkingSpotResponse>>> GetAvailable(
+        [FromQuery] ParkingSpotAvailabilitySearch search)
+        => Ok(await _parkingSpotService.GetAvailableAsync(search));
 
     [Authorize(Roles = AppRoles.Admin)]
     public override Task<ActionResult<ParkingSpotResponse>> Create([FromBody] ParkingSpotInsertRequest request)

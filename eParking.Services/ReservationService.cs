@@ -64,7 +64,7 @@ namespace eParking.Services
                         : r.Status == (int)ReservationStatus.Confirmed ? nameof(ReservationStatus.Confirmed)
                         : r.Status == (int)ReservationStatus.Cancelled ? nameof(ReservationStatus.Cancelled)
                         : r.Status == (int)ReservationStatus.Completed ? nameof(ReservationStatus.Completed)
-                        : nameof(ReservationStatus.Pending),
+                        : ReservationStatusHelper.UnknownStatusName,
                     StatusChangedAt = r.StatusChangedAt,
                     StatusChangedByUserId = r.StatusChangedByUserId,
                     StatusChangedByFullName = r.StatusChangedByUser != null
@@ -134,7 +134,7 @@ namespace eParking.Services
                 .FirstOrDefaultAsync(r => r.Id == request.Id)
                 ?? throw new NotFoundException($"Reservation with id {request.Id} not found.");
 
-            var currentStatus = GetStatus(entity);
+            var currentStatus = ReservationStatusHelper.ParseOrThrow(entity.Status);
             ReservationEditPolicy.EnsureCanEdit(currentStatus, isAdmin);
             var revertToPending = ReservationEditPolicy.ShouldRevertConfirmedToPending(currentStatus, isAdmin);
 
@@ -187,7 +187,7 @@ namespace eParking.Services
                 .FirstOrDefaultAsync(r => r.Id == id)
                 ?? throw new NotFoundException($"Reservation with id {id} not found.");
 
-            if (GetStatus(entity) != ReservationStatus.Pending)
+            if (ReservationStatusHelper.ParseOrThrow(entity.Status) != ReservationStatus.Pending)
                 throw new BusinessException("Only pending reservations can be confirmed.");
 
             await EnsureSpotAvailableAsync(entity.ParkingSpotId, entity.StartDate, entity.EndDate, id);
@@ -236,7 +236,7 @@ namespace eParking.Services
                 .FirstOrDefaultAsync(r => r.Id == id)
                 ?? throw new NotFoundException($"Reservation with id {id} not found.");
 
-            var current = GetStatus(entity);
+            var current = ReservationStatusHelper.ParseOrThrow(entity.Status);
 
             if (isReject)
             {
@@ -278,7 +278,7 @@ namespace eParking.Services
             int? actorUserId,
             string note)
         {
-            var current = GetStatus(entity);
+            var current = ReservationStatusHelper.ParseOrThrow(entity.Status);
             ReservationStateMachine.EnsureCanTransition(current, targetStatus);
 
             entity.Status = (int)targetStatus;
@@ -401,6 +401,9 @@ namespace eParking.Services
             if (search.ToDate.HasValue)
                 query = query.Where(r => r.StartDate <= search.ToDate.Value);
 
+            if (search.Status.HasValue)
+                query = query.Where(r => r.Status == (int)search.Status.Value);
+
             return query;
         }
 
@@ -433,14 +436,9 @@ namespace eParking.Services
         private static string GetLotName(Reservation reservation)
             => reservation.ParkingSpot?.Zone?.ParkingLot?.Name ?? "parking";
 
-        private static ReservationStatus GetStatus(Reservation reservation)
-            => Enum.IsDefined(typeof(ReservationStatus), reservation.Status)
-                ? (ReservationStatus)reservation.Status
-                : ReservationStatus.Pending;
-
         private static ReservationResponse MapToResponse(Reservation reservation)
         {
-            var status = GetStatus(reservation);
+            var status = ReservationStatusHelper.ParseOrThrow(reservation.Status);
             return new ReservationResponse
             {
                 Id = reservation.Id,

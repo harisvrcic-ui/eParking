@@ -33,6 +33,7 @@ class GenericCrudPage extends StatefulWidget {
     required this.showForm,
     this.filter,
     this.queryParams,
+    this.filterBar,
     this.cancelInsteadOfDelete = false,
   });
 
@@ -46,6 +47,7 @@ class GenericCrudPage extends StatefulWidget {
   final FormCallback showForm;
   final ItemFilter? filter;
   final Map<String, String>? queryParams;
+  final Widget? filterBar;
   final bool cancelInsteadOfDelete;
 
   @override
@@ -147,7 +149,7 @@ class _GenericCrudPageState extends State<GenericCrudPage> {
       );
     }).toList();
 
-    return ManagementPageLayout(
+    final page = ManagementPageLayout(
       title: widget.title,
       subtitle: widget.subtitle,
       searchHint: widget.searchHint,
@@ -164,6 +166,22 @@ class _GenericCrudPageState extends State<GenericCrudPage> {
           _applyFilter();
         });
       },
+    );
+
+    if (widget.filterBar == null) return page;
+
+    return Container(
+      color: AppColors.pageBackground,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+            child: widget.filterBar!,
+          ),
+          Expanded(child: page),
+        ],
+      ),
     );
   }
 }

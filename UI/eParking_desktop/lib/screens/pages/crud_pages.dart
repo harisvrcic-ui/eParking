@@ -349,17 +349,58 @@ class ParkingSpotTypesPage extends StatelessWidget {
   }
 }
 
-class ReservationsPage extends StatelessWidget {
+class ReservationsPage extends StatefulWidget {
   const ReservationsPage({super.key});
+
+  @override
+  State<ReservationsPage> createState() => _ReservationsPageState();
+}
+
+class _ReservationsPageState extends State<ReservationsPage> {
+  String? _statusFilter;
+
+  static const _statusOptions = <String?, String>{
+    null: 'Svi statusi',
+    'Pending': 'Na čekanju',
+    'Confirmed': 'Potvrđeno',
+    'Cancelled': 'Otkazano',
+    'Completed': 'Završeno',
+  };
+
   @override
   Widget build(BuildContext context) => Builder(
         builder: (pageContext) => GenericCrudPage(
+        key: ValueKey(_statusFilter ?? 'all'),
         title: 'Reservations Management',
         subtitle: 'Manage and view all reservations',
         endpoint: '/Reservations',
+        queryParams: _statusFilter == null ? null : {'status': _statusFilter!},
         cancelInsteadOfDelete: true,
         searchHint: 'Search by user or plate...',
         totalItemLabel: 'Reservations',
+        filterBar: Row(
+          children: [
+            Text('Status:', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  value: _statusFilter,
+                  items: _statusOptions.entries
+                      .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _statusFilter = value),
+                ),
+              ),
+            ),
+          ],
+        ),
         columnHeaders: const ['User', 'Spot', 'From', 'To', 'Price', 'Status'],
         buildRow: (item, reload, {onEdit, onDelete}) {
           final status = item['status']?.toString() ?? '';
@@ -404,6 +445,7 @@ class ReservationsPage extends StatelessWidget {
       'Confirmed' => ('Potvrđeno', AppColors.activeGreen, AppColors.activeGreenBg),
       'Cancelled' => ('Otkazano', Colors.red.shade700, Colors.red.shade50),
       'Completed' => ('Završeno', Colors.blue.shade800, Colors.blue.shade50),
+      'Unknown' => ('Nepoznato', Colors.grey.shade900, Colors.grey.shade200),
       _ => (status, Colors.grey.shade700, Colors.grey.shade100),
     };
     return Container(

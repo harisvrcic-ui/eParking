@@ -362,6 +362,131 @@ namespace eParking.Services.Database
                 """);
         }
 
+        public static async Task EnsureUniqueIntegrityIndexesAsync(ParkingDbContext context)
+        {
+            await context.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'[dbo].[Cars]', N'U') IS NOT NULL
+                BEGIN
+                    UPDATE [dbo].[Cars]
+                    SET [LicensePlate] = UPPER(LTRIM(RTRIM([LicensePlate])))
+                    WHERE [LicensePlate] IS NOT NULL;
+
+                    ;WITH [PlateRanks] AS (
+                        SELECT [Id], [LicensePlate],
+                               ROW_NUMBER() OVER (PARTITION BY [LicensePlate] ORDER BY [Id]) AS [RowNum]
+                        FROM [dbo].[Cars]
+                    )
+                    UPDATE [c]
+                    SET [LicensePlate] = LEFT([c].[LicensePlate] + N'-' + CAST([c].[Id] AS nvarchar(12)), 20)
+                    FROM [dbo].[Cars] AS [c]
+                    INNER JOIN [PlateRanks] AS [r] ON [c].[Id] = [r].[Id]
+                    WHERE [r].[RowNum] > 1;
+                END
+
+                IF OBJECT_ID(N'[dbo].[Brands]', N'U') IS NOT NULL
+                BEGIN
+                    ;WITH [NameRanks] AS (
+                        SELECT [Id], [Name],
+                               ROW_NUMBER() OVER (PARTITION BY [Name] ORDER BY [Id]) AS [RowNum]
+                        FROM [dbo].[Brands]
+                    )
+                    UPDATE [b]
+                    SET [Name] = LEFT([b].[Name] + N' (' + CAST([b].[Id] AS nvarchar(12)) + N')', 100)
+                    FROM [dbo].[Brands] AS [b]
+                    INNER JOIN [NameRanks] AS [r] ON [b].[Id] = [r].[Id]
+                    WHERE [r].[RowNum] > 1;
+                END
+
+                IF OBJECT_ID(N'[dbo].[Colors]', N'U') IS NOT NULL
+                BEGIN
+                    ;WITH [NameRanks] AS (
+                        SELECT [Id], [Name],
+                               ROW_NUMBER() OVER (PARTITION BY [Name] ORDER BY [Id]) AS [RowNum]
+                        FROM [dbo].[Colors]
+                    )
+                    UPDATE [c]
+                    SET [Name] = LEFT([c].[Name] + N' (' + CAST([c].[Id] AS nvarchar(12)) + N')', 100)
+                    FROM [dbo].[Colors] AS [c]
+                    INNER JOIN [NameRanks] AS [r] ON [c].[Id] = [r].[Id]
+                    WHERE [r].[RowNum] > 1;
+                END
+
+                IF OBJECT_ID(N'[dbo].[ParkingSpotTypes]', N'U') IS NOT NULL
+                BEGIN
+                    ;WITH [NameRanks] AS (
+                        SELECT [Id], [Name],
+                               ROW_NUMBER() OVER (PARTITION BY [Name] ORDER BY [Id]) AS [RowNum]
+                        FROM [dbo].[ParkingSpotTypes]
+                    )
+                    UPDATE [t]
+                    SET [Name] = LEFT([t].[Name] + N' (' + CAST([t].[Id] AS nvarchar(12)) + N')', 100)
+                    FROM [dbo].[ParkingSpotTypes] AS [t]
+                    INNER JOIN [NameRanks] AS [r] ON [t].[Id] = [r].[Id]
+                    WHERE [r].[RowNum] > 1;
+                END
+
+                IF OBJECT_ID(N'[dbo].[ReservationTypes]', N'U') IS NOT NULL
+                BEGIN
+                    ;WITH [NameRanks] AS (
+                        SELECT [Id], [Name],
+                               ROW_NUMBER() OVER (PARTITION BY [Name] ORDER BY [Id]) AS [RowNum]
+                        FROM [dbo].[ReservationTypes]
+                    )
+                    UPDATE [t]
+                    SET [Name] = LEFT([t].[Name] + N' (' + CAST([t].[Id] AS nvarchar(12)) + N')', 100)
+                    FROM [dbo].[ReservationTypes] AS [t]
+                    INNER JOIN [NameRanks] AS [r] ON [t].[Id] = [r].[Id]
+                    WHERE [r].[RowNum] > 1;
+                END
+
+                IF OBJECT_ID(N'[dbo].[ParkingSpots]', N'U') IS NOT NULL
+                BEGIN
+                    ;WITH [SpotRanks] AS (
+                        SELECT [Id], [ZoneId], [ParkingNumber],
+                               ROW_NUMBER() OVER (PARTITION BY [ZoneId], [ParkingNumber] ORDER BY [Id]) AS [RowNum]
+                        FROM [dbo].[ParkingSpots]
+                    )
+                    UPDATE [s]
+                    SET [ParkingNumber] = [s].[ParkingNumber] + [r].[RowNum] - 1
+                    FROM [dbo].[ParkingSpots] AS [s]
+                    INNER JOIN [SpotRanks] AS [r] ON [s].[Id] = [r].[Id]
+                    WHERE [r].[RowNum] > 1;
+                END
+
+                IF OBJECT_ID(N'[dbo].[MyAppUsers]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_MyAppUsers_Username' AND object_id = OBJECT_ID(N'[dbo].[MyAppUsers]'))
+                    CREATE UNIQUE INDEX [IX_MyAppUsers_Username] ON [dbo].[MyAppUsers]([Username]);
+
+                IF OBJECT_ID(N'[dbo].[MyAppUsers]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_MyAppUsers_Email' AND object_id = OBJECT_ID(N'[dbo].[MyAppUsers]'))
+                    CREATE UNIQUE INDEX [IX_MyAppUsers_Email] ON [dbo].[MyAppUsers]([Email]);
+
+                IF OBJECT_ID(N'[dbo].[Cars]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Cars_LicensePlate' AND object_id = OBJECT_ID(N'[dbo].[Cars]'))
+                    CREATE UNIQUE INDEX [IX_Cars_LicensePlate] ON [dbo].[Cars]([LicensePlate]);
+
+                IF OBJECT_ID(N'[dbo].[ParkingSpots]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ParkingSpots_ZoneId_ParkingNumber' AND object_id = OBJECT_ID(N'[dbo].[ParkingSpots]'))
+                    CREATE UNIQUE INDEX [IX_ParkingSpots_ZoneId_ParkingNumber] ON [dbo].[ParkingSpots]([ZoneId], [ParkingNumber]);
+
+                IF OBJECT_ID(N'[dbo].[Brands]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Brands_Name' AND object_id = OBJECT_ID(N'[dbo].[Brands]'))
+                    CREATE UNIQUE INDEX [IX_Brands_Name] ON [dbo].[Brands]([Name]);
+
+                IF OBJECT_ID(N'[dbo].[Colors]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Colors_Name' AND object_id = OBJECT_ID(N'[dbo].[Colors]'))
+                    CREATE UNIQUE INDEX [IX_Colors_Name] ON [dbo].[Colors]([Name]);
+
+                IF OBJECT_ID(N'[dbo].[ParkingSpotTypes]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ParkingSpotTypes_Name' AND object_id = OBJECT_ID(N'[dbo].[ParkingSpotTypes]'))
+                    CREATE UNIQUE INDEX [IX_ParkingSpotTypes_Name] ON [dbo].[ParkingSpotTypes]([Name]);
+
+                IF OBJECT_ID(N'[dbo].[ReservationTypes]', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ReservationTypes_Name' AND object_id = OBJECT_ID(N'[dbo].[ReservationTypes]'))
+                    CREATE UNIQUE INDEX [IX_ReservationTypes_Name] ON [dbo].[ReservationTypes]([Name]);
+                """);
+        }
+
         public static async Task LinkOrphanZonesToDefaultLotAsync(ParkingDbContext context, DateTime seedDate)
         {
             var lotId = await context.ParkingLots.Select(l => l.Id).FirstOrDefaultAsync();

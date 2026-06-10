@@ -23,6 +23,7 @@ namespace eParking.Services.Database
             await DatabaseSchemaUpgrader.EnsureDecimalMoneyColumnsAsync(context);
             await DatabaseSchemaUpgrader.EnsureReservationTypeBillingUnitAsync(context);
             await DatabaseSchemaUpgrader.EnsureParkingSpotsLinkedViaZoneAsync(context);
+            await DatabaseSchemaUpgrader.EnsureUniqueIntegrityIndexesAsync(context);
             await BackfillReservationStatusesAsync(context);
             await SeedCountriesAsync(context, seedDate);
 

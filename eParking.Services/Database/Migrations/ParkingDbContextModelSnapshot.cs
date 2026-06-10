@@ -49,6 +49,9 @@ namespace eParking.Services.Database.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.ToTable("Brands", (string)null);
                 });
 
@@ -101,6 +104,9 @@ namespace eParking.Services.Database.Migrations
                     b.HasIndex("ColorId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("LicensePlate")
+                        .IsUnique();
 
                     b.ToTable("Cars", (string)null);
                 });
@@ -161,6 +167,9 @@ namespace eParking.Services.Database.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Colors", (string)null);
                 });
@@ -319,6 +328,12 @@ namespace eParking.Services.Database.Migrations
 
                     b.HasIndex("GenderId");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
                     b.ToTable("MyAppUsers", (string)null);
                 });
 
@@ -428,6 +443,9 @@ namespace eParking.Services.Database.Migrations
 
                     b.HasIndex("ZoneId");
 
+                    b.HasIndex("ZoneId", "ParkingNumber")
+                        .IsUnique();
+
                     b.ToTable("ParkingSpots", (string)null);
                 });
 
@@ -459,6 +477,9 @@ namespace eParking.Services.Database.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("ParkingSpotTypes", (string)null);
                 });
@@ -516,8 +537,8 @@ namespace eParking.Services.Database.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal>("FinalPrice")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<double>("FinalPrice")
+                        .HasColumnType("float");
 
                     b.Property<int>("ParkingSpotId")
                         .HasColumnType("int");
@@ -558,16 +579,16 @@ namespace eParking.Services.Database.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("BillingUnit")
+                    b.Property<int>("Price")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("ReservationTypes", (string)null);
                 });

@@ -118,6 +118,38 @@ namespace eParking.Services.Database
             modelBuilder.Entity<Reservation>()
                 .Property(r => r.FinalPrice)
                 .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<MyAppUser>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<MyAppUser>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<Car>()
+                .HasIndex(c => c.LicensePlate)
+                .IsUnique();
+
+            modelBuilder.Entity<ParkingSpot>()
+                .HasIndex(s => new { s.ZoneId, s.ParkingNumber })
+                .IsUnique();
+
+            modelBuilder.Entity<Brand>()
+                .HasIndex(b => b.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<Color>()
+                .HasIndex(c => c.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<ParkingSpotType>()
+                .HasIndex(t => t.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<ReservationType>()
+                .HasIndex(t => t.Name)
+                .IsUnique();
         }
     }
 }

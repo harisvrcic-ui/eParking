@@ -19,6 +19,13 @@ class ReservationCard extends StatelessWidget {
   final Color statusColor;
   final VoidCallback? onCancel;
 
+  String? get _statusNoteLabel {
+    final note = reservation.statusNote?.trim();
+    if (note == null || note.isEmpty) return null;
+    if (reservation.isCancelled) return 'Razlog otkazivanja';
+    return 'Napomena';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -93,6 +100,14 @@ class ReservationCard extends StatelessWidget {
               label: 'Cijena',
               value: '${reservation.finalPrice.toStringAsFixed(2)} KM',
             ),
+            if (_statusNoteLabel != null) ...[
+              const SizedBox(height: 4),
+              DetailInfoRow(
+                icon: Icons.notes,
+                label: _statusNoteLabel!,
+                value: reservation.statusNote!.trim(),
+              ),
+            ],
             if (onCancel != null) ...[
               const SizedBox(height: 8),
               Align(

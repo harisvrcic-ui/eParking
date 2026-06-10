@@ -401,7 +401,15 @@ class _ReservationsPageState extends State<ReservationsPage> {
             ),
           ],
         ),
-        columnHeaders: const ['User', 'Spot', 'From', 'To', 'Price', 'Status'],
+        columnHeaders: const [
+          'User',
+          'Spot',
+          'From',
+          'To',
+          'Price',
+          'Status',
+          'Napomena',
+        ],
         buildRow: (item, reload, {onEdit, onDelete}) {
           final status = item['status']?.toString() ?? '';
           final isPending = status == 'Pending';
@@ -414,6 +422,7 @@ class _ReservationsPageState extends State<ReservationsPage> {
               Text(_fmtDate(item['endDate'])),
               Text('${(item['finalPrice'] as num?)?.toStringAsFixed(2) ?? '0.00'} KM'),
               _statusChip(status),
+              _statusNoteCell(item),
             ],
             extraActions: isPending
                 ? [
@@ -438,6 +447,26 @@ class _ReservationsPageState extends State<ReservationsPage> {
         showForm: _resForm,
       ),
       );
+
+  static Widget _statusNoteCell(Map<String, dynamic> item) {
+    final note = item['statusNote']?.toString().trim() ?? '';
+    if (note.isEmpty) {
+      return Text('—', style: TextStyle(color: Colors.grey.shade500));
+    }
+
+    final status = item['status']?.toString() ?? '';
+    final label = status == 'Cancelled' ? 'Razlog otkazivanja' : 'Napomena';
+
+    return Tooltip(
+      message: '$label: $note',
+      child: Text(
+        note,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+      ),
+    );
+  }
 
   static Widget _statusChip(String status) {
     final (label, color, bg) = switch (status) {
@@ -686,6 +715,23 @@ class _ReservationsPageState extends State<ReservationsPage> {
                         onChanged: (v) => setS(() => start = v),
                       ),
                     ),
+                    if (item != null &&
+                        (item['statusNote']?.toString().trim().isNotEmpty ?? false))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: item['status']?.toString() == 'Cancelled'
+                                ? 'Razlog otkazivanja'
+                                : 'Napomena statusa',
+                            border: const OutlineInputBorder(),
+                          ),
+                          child: Text(
+                            item['statusNote'].toString().trim(),
+                            style: TextStyle(color: Colors.grey.shade800),
+                          ),
+                        ),
+                      ),
                     FormField<void>(
                       validator: (_) {
                         if (!end.isAfter(start)) return ValidationMsgs.endAfterStart;

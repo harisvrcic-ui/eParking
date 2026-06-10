@@ -97,40 +97,90 @@ Future<String?> showCancelReservationDialog(
   required String message,
   String? details,
   required String confirmLabel,
-}) async {
-  final s = context.s;
-  final reasonController = TextEditingController();
-  final formKey = GlobalKey<FormState>();
-
-  final result = await showDialog<bool>(
+}) {
+  return showDialog<String>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => AlertDialog(
-      title: dialogTitleBar(ctx, title),
+    builder: (ctx) => _CancelReservationDialog(
+      title: title,
+      message: message,
+      details: details,
+      confirmLabel: confirmLabel,
+    ),
+  );
+}
+
+class _CancelReservationDialog extends StatefulWidget {
+  const _CancelReservationDialog({
+    required this.title,
+    required this.message,
+    this.details,
+    required this.confirmLabel,
+  });
+
+  final String title;
+  final String message;
+  final String? details;
+  final String confirmLabel;
+
+  @override
+  State<_CancelReservationDialog> createState() =>
+      _CancelReservationDialogState();
+}
+
+class _CancelReservationDialogState extends State<_CancelReservationDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _reasonController;
+
+  @override
+  void initState() {
+    super.initState();
+    _reasonController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+
+    return AlertDialog(
+      title: dialogTitleBar(context, widget.title),
       content: Form(
-        key: formKey,
+        key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              widget.message,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             Text(
               s.irreversibleActionWarning,
               style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
             ),
-            if (details != null && details.isNotEmpty) ...[
+            if (widget.details != null && widget.details!.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(details, style: const TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                widget.details!,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
             ],
             const SizedBox(height: 16),
             TextFormField(
-              controller: reasonController,
+              controller: _reasonController,
               decoration: const InputDecoration(
                 labelText: 'Razlog otkazivanja',
                 helperText: 'Obavezno — razlog se čuva u historiji rezervacije',
               ),
               maxLines: 3,
+              autofocus: true,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return s.requiredField;
@@ -143,27 +193,18 @@ Future<String?> showCancelReservationDialog(
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
+          onPressed: () => Navigator.pop(context),
           child: Text(s.no),
         ),
         FilledButton(
           onPressed: () {
-            if (!formKey.currentState!.validate()) return;
-            Navigator.pop(ctx, true);
+            if (!_formKey.currentState!.validate()) return;
+            Navigator.pop(context, _reasonController.text.trim());
           },
           style: FilledButton.styleFrom(backgroundColor: Colors.red),
-          child: Text(confirmLabel),
+          child: Text(widget.confirmLabel),
         ),
       ],
-    ),
-  );
-
-  if (result != true) {
-    reasonController.dispose();
-    return null;
+    );
   }
-
-  final reason = reasonController.text.trim();
-  reasonController.dispose();
-  return reason;
 }

@@ -192,17 +192,53 @@ Future<String?> showCancelReservationDialog(
   BuildContext context, {
   required String title,
   String? details,
-}) async {
-  final reason = TextEditingController();
-  final formKey = GlobalKey<FormState>();
-
-  final confirmed = await showDialog<bool>(
+}) {
+  return showDialog<String>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => AlertDialog(
-      title: dialogTitleBar(ctx, title),
+    builder: (ctx) => _CancelReservationDialog(
+      title: title,
+      details: details,
+    ),
+  );
+}
+
+class _CancelReservationDialog extends StatefulWidget {
+  const _CancelReservationDialog({
+    required this.title,
+    this.details,
+  });
+
+  final String title;
+  final String? details;
+
+  @override
+  State<_CancelReservationDialog> createState() =>
+      _CancelReservationDialogState();
+}
+
+class _CancelReservationDialogState extends State<_CancelReservationDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _reasonController;
+
+  @override
+  void initState() {
+    super.initState();
+    _reasonController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: dialogTitleBar(context, widget.title),
       content: Form(
-        key: formKey,
+        key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -216,18 +252,22 @@ Future<String?> showCancelReservationDialog(
               'Ova radnja je nepovratna i ne može se poništiti.',
               style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
             ),
-            if (details != null && details.isNotEmpty) ...[
+            if (widget.details != null && widget.details!.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text(details, style: const TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                widget.details!,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
             ],
             const SizedBox(height: 16),
             TextFormField(
-              controller: reason,
+              controller: _reasonController,
               decoration: const InputDecoration(
                 labelText: 'Razlog otkazivanja',
                 helperText: 'Obavezno — razlog se čuva u historiji rezervacije',
               ),
               maxLines: 3,
+              autofocus: true,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return ValidationMsgs.required('Razlog otkazivanja');
@@ -239,27 +279,21 @@ Future<String?> showCancelReservationDialog(
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Odustani')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Odustani'),
+        ),
         FilledButton(
           onPressed: () {
-            if (!formKey.currentState!.validate()) return;
-            Navigator.pop(ctx, true);
+            if (!_formKey.currentState!.validate()) return;
+            Navigator.pop(context, _reasonController.text.trim());
           },
           style: FilledButton.styleFrom(backgroundColor: Colors.red),
           child: const Text('Otkaži rezervaciju'),
         ),
       ],
-    ),
-  );
-
-  if (confirmed != true) {
-    reason.dispose();
-    return null;
+    );
   }
-
-  final trimmed = reason.text.trim();
-  reason.dispose();
-  return trimmed;
 }
 
 Widget compactCheckboxListTile({

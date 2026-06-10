@@ -89,3 +89,81 @@ Future<bool> showDestructiveConfirmDialog(
   );
   return result == true;
 }
+
+/// Otkazivanje rezervacije s obaveznim razlogom (audit trag).
+Future<String?> showCancelReservationDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String? details,
+  required String confirmLabel,
+}) async {
+  final s = context.s;
+  final reasonController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      title: dialogTitleBar(ctx, title),
+      content: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(
+              s.irreversibleActionWarning,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+            ),
+            if (details != null && details.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(details, style: const TextStyle(fontWeight: FontWeight.w500)),
+            ],
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Razlog otkazivanja',
+                helperText: 'Obavezno — razlog se čuva u historiji rezervacije',
+              ),
+              maxLines: 3,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return s.requiredField;
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(s.no),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!formKey.currentState!.validate()) return;
+            Navigator.pop(ctx, true);
+          },
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+
+  if (result != true) {
+    reasonController.dispose();
+    return null;
+  }
+
+  final reason = reasonController.text.trim();
+  reasonController.dispose();
+  return reason;
+}

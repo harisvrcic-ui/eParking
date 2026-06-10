@@ -176,7 +176,13 @@ namespace eParking.Services
         }
 
         public Task<ReservationResponse> CancelAsync(int id, ReservationCancelRequest request, int actorUserId, bool isAdmin)
-            => ChangeStatusAsync(id, ReservationStatus.Cancelled, actorUserId, request.Reason, isAdmin, isReject: false);
+        {
+            if (string.IsNullOrWhiteSpace(request.Reason))
+                throw new BusinessException("Cancellation reason is required.");
+
+            return ChangeStatusAsync(id, ReservationStatus.Cancelled, actorUserId, request.Reason.Trim(),
+                isAdmin, isReject: false);
+        }
 
         public async Task<ReservationResponse> ConfirmAsync(int id, ReservationConfirmRequest? request, int actorUserId)
         {
@@ -255,7 +261,7 @@ namespace eParking.Services
 
             var description = isReject
                 ? $"Odbijeno: {note}"
-                : string.IsNullOrWhiteSpace(note) ? "Otkazano od strane korisnika." : $"Otkazano: {note}";
+                : $"Otkazano: {note}";
 
             ApplyStatusTransition(entity, targetStatus, actorUserId, description);
             entity.UpdatedAt = DateTime.UtcNow;
@@ -266,7 +272,7 @@ namespace eParking.Services
             var title = isReject ? "Rezervacija odbijena" : "Rezervacija otkazana";
             var body = isReject
                 ? $"Vasa rezervacija #{entity.Id} je odbijena. Razlog: {note}"
-                : $"Vasa rezervacija #{entity.Id} je otkazana.{(string.IsNullOrWhiteSpace(note) ? "" : $" Razlog: {note}")}";
+                : $"Vasa rezervacija #{entity.Id} je otkazana. Razlog: {note}";
 
             await PublishNotificationAsync(entity, title, body);
             return MapToResponse(entity);

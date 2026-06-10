@@ -187,6 +187,81 @@ Future<bool> showDeleteConfirmDialog(
   return result == true;
 }
 
+/// Otkazivanje rezervacije s obaveznim razlogom (audit trag).
+Future<String?> showCancelReservationDialog(
+  BuildContext context, {
+  required String title,
+  String? details,
+}) async {
+  final reason = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      title: dialogTitleBar(ctx, title),
+      content: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Jeste li sigurni da želite otkazati rezervaciju?',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ova radnja je nepovratna i ne može se poništiti.',
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+            ),
+            if (details != null && details.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(details, style: const TextStyle(fontWeight: FontWeight.w500)),
+            ],
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: reason,
+              decoration: const InputDecoration(
+                labelText: 'Razlog otkazivanja',
+                helperText: 'Obavezno — razlog se čuva u historiji rezervacije',
+              ),
+              maxLines: 3,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return ValidationMsgs.required('Razlog otkazivanja');
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Odustani')),
+        FilledButton(
+          onPressed: () {
+            if (!formKey.currentState!.validate()) return;
+            Navigator.pop(ctx, true);
+          },
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Otkaži rezervaciju'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true) {
+    reason.dispose();
+    return null;
+  }
+
+  final trimmed = reason.text.trim();
+  reason.dispose();
+  return trimmed;
+}
+
 Widget compactCheckboxListTile({
   required String title,
   required bool value,

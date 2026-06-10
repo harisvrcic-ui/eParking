@@ -55,20 +55,19 @@ class _ReservationsPageState extends State<ReservationsPage> {
 
   Future<void> _cancel(Reservation reservation) async {
     final s = context.s;
-    final confirm = await showDestructiveConfirmDialog(
+    final reason = await showCancelReservationDialog(
       context,
       title: s.cancelReservationQuestion,
       message: s.cancelReservation,
       details:
           '${reservation.locationTitle}\n${_formatRange(reservation.startDate, reservation.endDate)}',
       confirmLabel: s.yesCancel,
-      destructive: true,
     );
 
-    if (!confirm) return;
+    if (reason == null) return;
 
     try {
-      await _service.cancelReservation(reservation.id);
+      await _service.cancelReservation(reservation.id, reason: reason);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(s.reservationCancelled)),

@@ -12,10 +12,13 @@ class ReservationService {
         .toList();
   }
 
-  Future<void> cancelReservation(int id, {String? reason}) async {
-    await _api.post('/Reservations/$id/cancel', {
-      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
-    });
+  Future<void> cancelReservation(int id, {required String reason}) async {
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Cancellation reason is required.');
+    }
+
+    await _api.post('/Reservations/$id/cancel', {'reason': trimmed});
   }
 
   Future<List<LookupItem>> getReservationTypes() async {

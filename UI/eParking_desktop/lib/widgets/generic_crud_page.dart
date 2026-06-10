@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
-import '../screens/forms/form_helpers.dart';
+import '../screens/forms/form_helpers.dart' show showCancelReservationDialog, showDeleteConfirmDialog;
 import 'management_page_layout.dart';
 
 typedef ListReload = Future<void> Function();
@@ -105,20 +105,25 @@ class _GenericCrudPageState extends State<GenericCrudPage> {
   }
 
   Future<void> _confirmDelete(int id) async {
-    final ok = await showDeleteConfirmDialog(
-      context,
-      itemLabel: widget.totalItemLabel.toLowerCase(),
-    );
-    if (!ok) return;
-
     try {
       if (widget.cancelInsteadOfDelete) {
-        await _api.post('${widget.endpoint}/$id/cancel', {
-          'reason': 'Otkazano iz admin panela.',
-        });
+        final reason = await showCancelReservationDialog(
+          context,
+          title: 'Otkaži rezervaciju',
+        );
+        if (reason == null) return;
+
+        await _api.post('${widget.endpoint}/$id/cancel', {'reason': reason});
       } else {
+        final ok = await showDeleteConfirmDialog(
+          context,
+          itemLabel: widget.totalItemLabel.toLowerCase(),
+        );
+        if (!ok) return;
+
         await _api.delete(widget.endpoint, id);
       }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

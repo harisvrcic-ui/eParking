@@ -26,11 +26,15 @@ class LocationService {
   static double? demoDistanceKmForParkir(String lotName) {
     if (!useDemoDistances) return null;
 
-    final n = lotName.toLowerCase();
-    if (n.contains('aria')) return 5.0;
-    if (n.contains('vije') || n.contains('vijecnica')) return 8.0;
-    if (n.contains('baš') || n.contains('basc')) return 7.0;
-    return null;
+    final coords = resolveLotCoordinates(lotName: lotName);
+    if (coords == null) return null;
+
+    return distanceKm(
+      sarajevoCenterLat,
+      sarajevoCenterLng,
+      coords.lat,
+      coords.lng,
+    );
   }
 
   /// Sarajevo metro — emulator default (npr. SAD) odbacujemo za udaljenosti.
@@ -157,12 +161,14 @@ class LocationService {
     }
 
     final n = lotName.toLowerCase();
-    if (n.contains('aria')) return (lat: 43.8425, lng: 18.3360);
+    if (n.contains('aria')) {
+      return (lat: 43.858148077987074, lng: 18.416735018595777);
+    }
     if (n.contains('vije') || n.contains('vijecnica')) {
       return (lat: 43.8590, lng: 18.4335);
     }
     if (n.contains('baš') || n.contains('basc')) {
-      return (lat: 43.8594, lng: 18.4312);
+      return (lat: 43.860743216217216, lng: 18.431152808119002);
     }
     return null;
   }

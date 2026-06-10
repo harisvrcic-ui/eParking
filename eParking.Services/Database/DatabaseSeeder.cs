@@ -20,6 +20,8 @@ namespace eParking.Services.Database
             await DatabaseSchemaUpgrader.EnsureReservationStatusColumnsAsync(context);
             await DatabaseSchemaUpgrader.EnsureNewsTableAsync(context);
             await DatabaseSchemaUpgrader.EnsureAccountEnhancementsAsync(context);
+            await DatabaseSchemaUpgrader.EnsureDecimalMoneyColumnsAsync(context);
+            await DatabaseSchemaUpgrader.EnsureReservationTypeBillingUnitAsync(context);
             await BackfillReservationStatusesAsync(context);
             await SeedCountriesAsync(context, seedDate);
 
@@ -98,7 +100,8 @@ namespace eParking.Services.Database
                 context.ReservationTypes.Add(new ReservationType
                 {
                     Name = "Hourly",
-                    Price = 5,
+                    Price = 5.00m,
+                    BillingUnit = Model.BillingUnit.Hourly,
                     CreatedAt = seedDate
                 });
                 await context.SaveChangesAsync();
@@ -251,7 +254,7 @@ namespace eParking.Services.Database
                         ReservationTypeId = typeId,
                         StartDate = new DateTime(2025, 1, 10, 8, 0, 0, DateTimeKind.Utc),
                         EndDate = new DateTime(2025, 1, 10, 10, 0, 0, DateTimeKind.Utc),
-                        FinalPrice = 5.00,
+                        FinalPrice = 5.00m,
                         Status = (int)Model.ReservationStatus.Completed,
                         StatusChangedAt = seedDate,
                         StatusNote = "Seed rezervacija (zavr�ena).",

@@ -110,6 +110,14 @@ namespace eParking.Services.Database
                 .WithMany(l => l.ViewHistories)
                 .HasForeignKey(x => x.ParkingLotId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ReservationType>()
+                .Property(t => t.Price)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<Reservation>()
+                .Property(r => r.FinalPrice)
+                .HasColumnType("decimal(18,2)");
         }
     }
 }

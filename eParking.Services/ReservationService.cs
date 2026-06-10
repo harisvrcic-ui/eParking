@@ -57,7 +57,7 @@ namespace eParking.Services
                     ReservationTypeName = r.ReservationType != null ? r.ReservationType.Name : string.Empty,
                     StartDate = r.StartDate,
                     EndDate = r.EndDate,
-                    FinalPrice = (decimal)r.FinalPrice,
+                    FinalPrice = r.FinalPrice,
                     CreatedAt = r.CreatedAt,
                     UpdatedAt = r.UpdatedAt,
                     Status = r.Status == (int)ReservationStatus.Pending ? nameof(ReservationStatus.Pending)
@@ -119,7 +119,7 @@ namespace eParking.Services
                 ReservationTypeId = request.ReservationTypeId,
                 StartDate = startUtc,
                 EndDate = endUtc,
-                FinalPrice = (double)finalPrice,
+                FinalPrice = finalPrice,
                 CreatedAt = DateTime.UtcNow,
                 Status = (int)ReservationStatus.Pending,
                 StatusChangedAt = DateTime.UtcNow,
@@ -166,7 +166,7 @@ namespace eParking.Services
             entity.ReservationTypeId = request.ReservationTypeId;
             entity.StartDate = startUtc;
             entity.EndDate = endUtc;
-            entity.FinalPrice = (double)ReservationPricing.Calculate(reservationType, spot, startUtc, endUtc);
+            entity.FinalPrice = ReservationPricing.Calculate(reservationType, spot, startUtc, endUtc);
             entity.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -427,7 +427,7 @@ namespace eParking.Services
                 ReservationTypeName = reservation.ReservationType?.Name ?? string.Empty,
                 StartDate = reservation.StartDate,
                 EndDate = reservation.EndDate,
-                FinalPrice = (decimal)reservation.FinalPrice,
+                FinalPrice = reservation.FinalPrice,
                 CreatedAt = reservation.CreatedAt,
                 UpdatedAt = reservation.UpdatedAt,
                 Status = status.ToString(),

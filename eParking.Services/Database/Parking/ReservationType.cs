@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using eParking.Model;
 
 namespace eParking.Services.Database.Parking
 {
@@ -12,7 +13,10 @@ namespace eParking.Services.Database.Parking
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
-        public int Price { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Price { get; set; }
+
+        public BillingUnit BillingUnit { get; set; } = BillingUnit.Hourly;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

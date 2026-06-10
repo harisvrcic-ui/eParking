@@ -1,3 +1,4 @@
+using eParking.Model;
 using eParking.Model.Requests;
 using eParking.Model.Responses;
 using eParking.Model.SearchObjects;
@@ -32,10 +33,12 @@ namespace eParking.Services
 
         public async Task<ReservationTypeResponse> InsertAsync(ReservationTypeInsertRequest request)
         {
+            ValidateBillingUnit(request.BillingUnit);
             var entity = new ReservationType
             {
                 Name = request.Name.Trim(),
-                Price = (int)request.Price,
+                Price = request.Price,
+                BillingUnit = request.BillingUnit,
                 CreatedAt = DateTime.UtcNow
             };
             _context.ReservationTypes.Add(entity);
@@ -47,8 +50,10 @@ namespace eParking.Services
         {
             var entity = await _context.ReservationTypes.FindAsync(request.Id)
                 ?? throw new NotFoundException($"ReservationType with id {request.Id} not found.");
+            ValidateBillingUnit(request.BillingUnit);
             entity.Name = request.Name.Trim();
-            entity.Price = (int)request.Price;
+            entity.Price = request.Price;
+            entity.BillingUnit = request.BillingUnit;
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return Map(entity);
@@ -64,9 +69,20 @@ namespace eParking.Services
             await _context.SaveChangesAsync();
         }
 
+        private static void ValidateBillingUnit(BillingUnit billingUnit)
+        {
+            if (!Enum.IsDefined(typeof(BillingUnit), billingUnit))
+                throw new BusinessException("Jedinica obračuna mora biti Hourly ili Daily.");
+        }
+
         private static ReservationTypeResponse Map(ReservationType t) => new()
         {
-            Id = t.Id, Name = t.Name, Price = (decimal)t.Price, CreatedAt = t.CreatedAt, UpdatedAt = t.UpdatedAt
+            Id = t.Id,
+            Name = t.Name,
+            Price = t.Price,
+            BillingUnit = t.BillingUnit,
+            CreatedAt = t.CreatedAt,
+            UpdatedAt = t.UpdatedAt
         };
     }
 }

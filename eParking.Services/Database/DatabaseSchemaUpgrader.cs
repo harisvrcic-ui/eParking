@@ -237,6 +237,63 @@ namespace eParking.Services.Database
                 """);
         }
 
+        /// <summary>
+        /// Migrates money columns from legacy int/float to decimal(18,2).
+        /// </summary>
+        public static async Task EnsureDecimalMoneyColumnsAsync(ParkingDbContext context)
+        {
+            await context.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'[dbo].[ReservationTypes]', N'U') IS NOT NULL
+                   AND COL_LENGTH('dbo.ReservationTypes', 'Price') IS NOT NULL
+                   AND EXISTS (
+                       SELECT 1 FROM sys.columns c
+                       JOIN sys.types t ON c.user_type_id = t.user_type_id
+                       WHERE c.object_id = OBJECT_ID(N'[dbo].[ReservationTypes]')
+                         AND c.name = N'Price'
+                         AND t.name IN (N'int', N'bigint', N'smallint', N'tinyint'))
+                BEGIN
+                    ALTER TABLE [dbo].[ReservationTypes] ALTER COLUMN [Price] decimal(18,2) NOT NULL;
+                END
+
+                IF OBJECT_ID(N'[dbo].[Reservations]', N'U') IS NOT NULL
+                   AND COL_LENGTH('dbo.Reservations', 'FinalPrice') IS NOT NULL
+                   AND EXISTS (
+                       SELECT 1 FROM sys.columns c
+                       JOIN sys.types t ON c.user_type_id = t.user_type_id
+                       WHERE c.object_id = OBJECT_ID(N'[dbo].[Reservations]')
+                         AND c.name = N'FinalPrice'
+                         AND t.name IN (N'float', N'real', N'int', N'bigint'))
+                BEGIN
+                    ALTER TABLE [dbo].[Reservations] ALTER COLUMN [FinalPrice] decimal(18,2) NOT NULL;
+                END
+                """);
+        }
+
+        public static async Task EnsureReservationTypeBillingUnitAsync(ParkingDbContext context)
+        {
+            await context.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'[dbo].[ReservationTypes]', N'U') IS NOT NULL
+                   AND COL_LENGTH('dbo.ReservationTypes', 'BillingUnit') IS NULL
+                BEGIN
+                    ALTER TABLE [dbo].[ReservationTypes]
+                        ADD [BillingUnit] int NOT NULL CONSTRAINT [DF_ReservationTypes_BillingUnit] DEFAULT(0);
+                    ALTER TABLE [dbo].[ReservationTypes] DROP CONSTRAINT [DF_ReservationTypes_BillingUnit];
+                END
+
+                IF OBJECT_ID(N'[dbo].[ReservationTypes]', N'U') IS NOT NULL
+                   AND COL_LENGTH('dbo.ReservationTypes', 'BillingUnit') IS NOT NULL
+                BEGIN
+                    UPDATE [dbo].[ReservationTypes]
+                    SET [BillingUnit] = 1
+                    WHERE [BillingUnit] = 0
+                      AND (
+                          [Name] LIKE N'%daily%' COLLATE SQL_Latin1_General_CP1_CI_AS
+                          OR [Name] LIKE N'%dnev%' COLLATE SQL_Latin1_General_CP1_CI_AS
+                      );
+                END
+                """);
+        }
+
         public static async Task LinkOrphanZonesToDefaultLotAsync(ParkingDbContext context, DateTime seedDate)
         {
             var lotId = await context.ParkingLots.Select(l => l.Id).FirstOrDefaultAsync();

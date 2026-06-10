@@ -1,3 +1,4 @@
+using eParking.Model;
 using eParking.Services.Database.Parking;
 
 namespace eParking.Services
@@ -12,16 +13,18 @@ namespace eParking.Services
             var duration = endDate - startDate;
             decimal basePrice;
 
-            if (reservationType.Name.Contains("daily", StringComparison.OrdinalIgnoreCase))
+            if (reservationType.BillingUnit == BillingUnit.Daily)
             {
                 var days = Math.Max(1, (int)Math.Ceiling(duration.TotalDays));
                 basePrice = days * reservationType.Price;
             }
-            else
+            else if (reservationType.BillingUnit == BillingUnit.Hourly)
             {
                 var hours = Math.Max(1, (int)Math.Ceiling(duration.TotalHours));
                 basePrice = hours * reservationType.Price;
             }
+            else
+                throw new BusinessException($"Nepoznata jedinica obračuna: {reservationType.BillingUnit}.");
 
             return Math.Round(basePrice * spot.ParkingSpotType.PriceMultiplier, 2);
         }

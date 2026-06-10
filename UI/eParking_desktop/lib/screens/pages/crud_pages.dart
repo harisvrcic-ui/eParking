@@ -371,7 +371,7 @@ class ReservationsPage extends StatelessWidget {
               Text(item['parkingSpotDisplayName']?.toString() ?? ''),
               Text(_fmtDate(item['startDate'])),
               Text(_fmtDate(item['endDate'])),
-              Text('${item['finalPrice']} KM'),
+              Text('${(item['finalPrice'] as num?)?.toStringAsFixed(2) ?? '0.00'} KM'),
               _statusChip(status),
             ],
             extraActions: isPending
@@ -742,19 +742,35 @@ class ReservationTypesPage extends StatelessWidget {
         endpoint: '/ReservationTypes',
         searchHint: 'Search by name...',
         totalItemLabel: 'Reservation Types',
-        columnHeaders: const ['Name', 'Price'],
+        columnHeaders: const ['Name', 'Obračun', 'Price'],
         buildRow: (item, reload, {onEdit, onDelete}) => ManagementRow(
-          cells: [Text(item['name']?.toString() ?? ''), Text('${item['price']} KM')],
+          cells: [
+            Text(item['name']?.toString() ?? ''),
+            Text(_billingUnitLabel(item['billingUnit'])),
+            Text('${(item['price'] as num?)?.toStringAsFixed(2) ?? '0.00'} KM'),
+          ],
           onEdit: onEdit,
           onDelete: onDelete,
         ),
         showForm: _rtForm,
       );
 
+  static String _billingUnitLabel(dynamic value) {
+    final raw = value?.toString() ?? 'Hourly';
+    return switch (raw) {
+      'Daily' || '1' => 'Dnevno',
+      _ => 'Satno',
+    };
+  }
+
   static Future<void> _rtForm(BuildContext ctx, Map<String, dynamic>? item, ListReload reload) async {
     final api = ApiClient();
     final n = TextEditingController(text: item?['name']?.toString() ?? '');
     final p = TextEditingController(text: '${item?['price'] ?? 0}');
+    var billingUnit = switch (item?['billingUnit']?.toString()) {
+      'Daily' || '1' => 'Daily',
+      _ => 'Hourly',
+    };
     await showCrudDialog(
       context: ctx,
       title: item == null ? 'Add Reservation Type' : 'Edit Reservation Type',
@@ -763,10 +779,28 @@ class ReservationTypesPage extends StatelessWidget {
           : 'Tip rezervacije je uspješno ažuriran.',
       fields: [
         textField(n, 'Name'),
+        StatefulBuilder(
+          builder: (c, setLocal) => DropdownButtonFormField<String>(
+            value: billingUnit,
+            decoration: const InputDecoration(
+              labelText: 'Jedinica obračuna',
+              helperText: 'Satno ili dnevno — ne ovisi o nazivu tipa.',
+            ),
+            items: const [
+              DropdownMenuItem(value: 'Hourly', child: Text('Satno (Hourly)')),
+              DropdownMenuItem(value: 'Daily', child: Text('Dnevno (Daily)')),
+            ],
+            onChanged: (v) => setLocal(() => billingUnit = v ?? 'Hourly'),
+          ),
+        ),
         numberField(p, 'Price', min: 0, max: 9999, helperText: 'Cijena u KM (npr. 2.50).'),
       ],
       onSave: () async {
-        final body = {'name': n.text.trim(), 'price': double.parse(p.text)};
+        final body = {
+          'name': n.text.trim(),
+          'price': double.parse(p.text),
+          'billingUnit': billingUnit,
+        };
         if (item == null) await api.post('/ReservationTypes', body);
         else await api.put('/ReservationTypes', item['id'] as int, {...body, 'id': item['id']});
         await reload();

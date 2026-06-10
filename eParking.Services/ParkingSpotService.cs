@@ -74,6 +74,7 @@ namespace eParking.Services
                 SetDisplayNames(entity, zone.Name);
 
                 _context.ParkingSpots.Add(entity);
+                await _context.SaveChangesAsync();
                 await _parkingLotService.RefreshSpotCountsAsync(persistChanges: false);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -109,6 +110,7 @@ namespace eParking.Services
 
                 SetDisplayNames(entity, zone.Name);
 
+                await _context.SaveChangesAsync();
                 await _parkingLotService.RefreshSpotCountsAsync(persistChanges: false);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -184,6 +186,7 @@ namespace eParking.Services
                     throw new BusinessException("Cannot delete a spot that has reservations.");
 
                 _context.ParkingSpots.Remove(entity);
+                await _context.SaveChangesAsync();
                 await _parkingLotService.RefreshSpotCountsAsync(persistChanges: false);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();

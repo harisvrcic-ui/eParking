@@ -33,7 +33,7 @@ namespace eParking.Services
                 {
                     Id = l.Id,
                     Name = l.Name,
-                    NumberOfSpots = l.NumberOfSpots,
+                    NumberOfSpots = _context.ParkingSpots.Count(s => s.IsActive && s.Zone.ParkingLotId == l.Id),
                     Status = l.Status.ToString(),
                     IsActive = l.IsActive,
                     Latitude = l.Latitude,
@@ -55,7 +55,7 @@ namespace eParking.Services
             if (lot == null)
                 throw new NotFoundException($"ParkingLot with id {id} not found.");
 
-            return MapToResponse(lot);
+            return await MapToResponseAsync(lot);
         }
 
         public async Task<ParkingLotResponse> InsertAsync(ParkingLotInsertRequest request)
@@ -76,7 +76,7 @@ namespace eParking.Services
             _context.ParkingLots.Add(entity);
             await _context.SaveChangesAsync();
 
-            return MapToResponse(entity);
+            return await MapToResponseAsync(entity);
         }
 
         public async Task<ParkingLotResponse> UpdateAsync(ParkingLotUpdateRequest request)
@@ -102,7 +102,7 @@ namespace eParking.Services
                 .Include(l => l.Zones)
                 .FirstAsync(l => l.Id == entity.Id);
 
-            return MapToResponse(entity);
+            return await MapToResponseAsync(entity);
         }
 
         public async Task DeleteAsync(int id)
@@ -123,23 +123,23 @@ namespace eParking.Services
 
         public async Task RefreshSpotCountsAsync(bool persistChanges = true)
         {
-            var lots = await _context.ParkingLots.ToListAsync();
-            var spots = await _context.ParkingSpots
+            var countsByLotId = await _context.ParkingSpots
                 .Where(s => s.IsActive)
-                .Include(s => s.Zone)
-                .ToListAsync();
+                .GroupBy(s => s.Zone.ParkingLotId)
+                .Select(g => new { LotId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.LotId, x => x.Count);
 
+            var lots = await _context.ParkingLots.ToListAsync();
             foreach (var lot in lots)
-            {
-                lot.NumberOfSpots = spots.Count(s => SpotBelongsToLot(s, lot.Id));
-            }
+                lot.NumberOfSpots = countsByLotId.GetValueOrDefault(lot.Id, 0);
 
             if (persistChanges)
                 await _context.SaveChangesAsync();
         }
 
-        private static bool SpotBelongsToLot(ParkingSpot spot, int lotId)
-            => spot.Zone != null && spot.Zone.ParkingLotId == lotId;
+        private Task<int> CountActiveSpotsForLotAsync(int lotId)
+            => _context.ParkingSpots.AsNoTracking()
+                .CountAsync(s => s.IsActive && s.Zone.ParkingLotId == lotId);
 
         private static IQueryable<ParkingSpot> FilterSpotsForLot(IQueryable<ParkingSpot> query, int lotId)
             => query.Where(s => s.IsActive && s.Zone.ParkingLotId == lotId);
@@ -306,13 +306,13 @@ namespace eParking.Services
             return query;
         }
 
-        private ParkingLotResponse MapToResponse(ParkingLot lot)
+        private async Task<ParkingLotResponse> MapToResponseAsync(ParkingLot lot)
         {
             return new ParkingLotResponse
             {
                 Id = lot.Id,
                 Name = lot.Name,
-                NumberOfSpots = lot.NumberOfSpots,
+                NumberOfSpots = await CountActiveSpotsForLotAsync(lot.Id),
                 Status = lot.Status.ToString(),
                 IsActive = lot.IsActive,
                 Latitude = lot.Latitude,

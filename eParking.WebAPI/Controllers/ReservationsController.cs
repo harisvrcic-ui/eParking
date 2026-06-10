@@ -113,7 +113,8 @@ public class ReservationsController
 
 
 
-        return await base.Update(id, request);
+        request.Id = id;
+        return Ok(await _service.UpdateAsync(request, _currentUser.GetUserId(), _currentUser.IsAdmin));
 
     }
 

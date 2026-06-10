@@ -86,23 +86,8 @@ namespace eParking.Services
 
         public async Task<ReservationResponse> InsertAsync(ReservationInsertRequest request)
         {
-            var car = await _context.Cars.FindAsync(request.CarId)
-                ?? throw new NotFoundException($"Car with id {request.CarId} not found.");
-
-            if (!car.IsActive)
-                throw new BusinessException("Car is not active.");
-
-            var spot = await _context.ParkingSpots
-                .Include(s => s.ParkingSpotType)
-                .Include(s => s.Zone)
-                .FirstOrDefaultAsync(s => s.Id == request.ParkingSpotId)
-                ?? throw new NotFoundException($"ParkingSpot with id {request.ParkingSpotId} not found.");
-
-            if (!spot.IsActive)
-                throw new BusinessException("Parking spot is not available.");
-
-            var reservationType = await _context.ReservationTypes.FindAsync(request.ReservationTypeId)
-                ?? throw new NotFoundException($"ReservationType with id {request.ReservationTypeId} not found.");
+            var (car, spot, reservationType) = await LoadAndValidateReservationResourcesAsync(
+                request.CarId, request.ParkingSpotId, request.ReservationTypeId);
 
             var (startUtc, endUtc) = ReservationTimeHelper.NormalizeAndValidatePeriod(
                 request.StartDate, request.EndDate);
@@ -136,30 +121,31 @@ namespace eParking.Services
             return MapToResponse(entity);
         }
 
-        public async Task<ReservationResponse> UpdateAsync(ReservationUpdateRequest request)
+        public Task<ReservationResponse> UpdateAsync(ReservationUpdateRequest request)
+            => UpdateAsync(request, actorUserId: 0, isAdmin: false);
+
+        public async Task<ReservationResponse> UpdateAsync(
+            ReservationUpdateRequest request,
+            int actorUserId,
+            bool isAdmin)
         {
             var entity = await _context.Reservations
                 .Include(r => r.Car)
                 .FirstOrDefaultAsync(r => r.Id == request.Id)
                 ?? throw new NotFoundException($"Reservation with id {request.Id} not found.");
 
-            EnsureEditable(entity);
+            var currentStatus = GetStatus(entity);
+            ReservationEditPolicy.EnsureCanEdit(currentStatus, isAdmin);
+            var revertToPending = ReservationEditPolicy.ShouldRevertConfirmedToPending(currentStatus, isAdmin);
 
-            var spot = await _context.ParkingSpots
-                .Include(s => s.ParkingSpotType)
-                .FirstOrDefaultAsync(s => s.Id == request.ParkingSpotId)
-                ?? throw new NotFoundException($"ParkingSpot with id {request.ParkingSpotId} not found.");
-
-            var reservationType = await _context.ReservationTypes.FindAsync(request.ReservationTypeId)
-                ?? throw new NotFoundException($"ReservationType with id {request.ReservationTypeId} not found.");
-
-            if (!await _context.Cars.AnyAsync(c => c.Id == request.CarId))
-                throw new NotFoundException($"Car with id {request.CarId} not found.");
+            var (car, spot, reservationType) = await LoadAndValidateReservationResourcesAsync(
+                request.CarId, request.ParkingSpotId, request.ReservationTypeId);
 
             var (startUtc, endUtc) = ReservationTimeHelper.NormalizeAndValidatePeriod(
                 request.StartDate, request.EndDate);
 
             await EnsureSpotAvailableAsync(request.ParkingSpotId, startUtc, endUtc, request.Id);
+            await EnsureNoDuplicateUserReservationAsync(car.UserId, startUtc, endUtc, request.Id);
 
             entity.CarId = request.CarId;
             entity.ParkingSpotId = request.ParkingSpotId;
@@ -169,8 +155,23 @@ namespace eParking.Services
             entity.FinalPrice = ReservationPricing.Calculate(reservationType, spot, startUtc, endUtc);
             entity.UpdatedAt = DateTime.UtcNow;
 
+            if (revertToPending)
+            {
+                entity.Status = (int)ReservationStatus.Pending;
+                entity.StatusChangedAt = DateTime.UtcNow;
+                entity.StatusChangedByUserId = actorUserId > 0 ? actorUserId : null;
+                entity.StatusNote = "Izmijenjeno od strane administratora, ponovo ceka potvrdu.";
+            }
+
             await _context.SaveChangesAsync();
             entity = await BuildQuery().FirstAsync(r => r.Id == entity.Id);
+
+            if (revertToPending)
+            {
+                await PublishNotificationAsync(entity, "Rezervacija izmijenjena",
+                    $"Vasa rezervacija #{entity.Id} na lokaciji {GetLotName(entity)} je izmijenjena od strane administratora i ponovo ceka potvrdu.");
+            }
+
             return MapToResponse(entity);
         }
 
@@ -286,11 +287,42 @@ namespace eParking.Services
             entity.StatusNote = note?.Trim();
         }
 
-        private static void EnsureEditable(Reservation entity)
+        private async Task<(Car Car, ParkingSpot Spot, ReservationType ReservationType)> LoadAndValidateReservationResourcesAsync(
+            int carId,
+            int parkingSpotId,
+            int reservationTypeId)
         {
-            var status = GetStatus(entity);
-            if (status is ReservationStatus.Cancelled or ReservationStatus.Completed)
-                throw new BusinessException($"Cannot modify a reservation in '{status}' status.");
+            var car = await _context.Cars.FindAsync(carId)
+                ?? throw new NotFoundException($"Car with id {carId} not found.");
+
+            if (!car.IsActive)
+                throw new BusinessException("Car is not active.");
+
+            var spot = await _context.ParkingSpots
+                .Include(s => s.ParkingSpotType)
+                .Include(s => s.Zone).ThenInclude(z => z.ParkingLot)
+                .FirstOrDefaultAsync(s => s.Id == parkingSpotId)
+                ?? throw new NotFoundException($"ParkingSpot with id {parkingSpotId} not found.");
+
+            if (!spot.IsActive)
+                throw new BusinessException("Parking spot is not available.");
+
+            if (spot.Zone == null)
+                throw new BusinessException("Parking spot is not linked to an active zone.");
+
+            if (!spot.Zone.IsActive)
+                throw new BusinessException("Parking zone is not active.");
+
+            if (spot.Zone.ParkingLot == null)
+                throw new BusinessException("Parking zone is not linked to an active parking lot.");
+
+            if (!spot.Zone.ParkingLot.IsActive)
+                throw new BusinessException("Parking lot is not active.");
+
+            var reservationType = await _context.ReservationTypes.FindAsync(reservationTypeId)
+                ?? throw new NotFoundException($"ReservationType with id {reservationTypeId} not found.");
+
+            return (car, spot, reservationType);
         }
 
         public static async Task EnsureSpotAvailableAsync(

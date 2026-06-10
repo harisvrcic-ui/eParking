@@ -24,6 +24,12 @@ namespace eParking.Services
 
         public (string Token, DateTime ExpiresAt) CreateToken(MyAppUser user)
         {
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("User account is not active.");
+
+            if (!user.IsAdmin && !user.IsUser)
+                throw new UnauthorizedAccessException("User has no application roles assigned.");
+
             var expiresAt = DateTime.UtcNow.AddMinutes(_settings.ExpiresMinutes);
             var claims = new List<Claim>
             {
@@ -31,8 +37,13 @@ namespace eParking.Services
                 new(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new(ClaimTypes.Name, user.Username),
                 new(ClaimTypes.Email, user.Email),
-                new(ClaimTypes.Role, user.IsAdmin ? AppRoles.Admin : AppRoles.User),
             };
+
+            if (user.IsAdmin)
+                claims.Add(new Claim(ClaimTypes.Role, AppRoles.Admin));
+
+            if (user.IsUser)
+                claims.Add(new Claim(ClaimTypes.Role, AppRoles.User));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Key));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

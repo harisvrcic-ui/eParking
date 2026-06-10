@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/reservation.dart';
+import '../utils/money.dart';
 import 'detail_info_row.dart';
 
 class ReservationCard extends StatelessWidget {
@@ -98,7 +99,7 @@ class ReservationCard extends StatelessWidget {
             DetailInfoRow(
               icon: Icons.payments_outlined,
               label: 'Cijena',
-              value: '${reservation.finalPrice.toStringAsFixed(2)} KM',
+              value: formatMoneyKm(reservation.finalPrice),
             ),
             if (_statusNoteLabel != null) ...[
               const SizedBox(height: 4),

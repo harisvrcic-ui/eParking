@@ -8,6 +8,7 @@ import '../models/lookup_item.dart';
 import '../services/car_service.dart';
 import '../services/reservation_service.dart';
 import '../utils/input_validators.dart';
+import '../utils/money.dart';
 import '../widgets/dialog_helpers.dart';
 import '../widgets/form_field_controls.dart';
 import '../widgets/form_navigation.dart';
@@ -169,9 +170,9 @@ class _ReservationScreenState extends State<ReservationScreen> {
             isPending
                 ? '${s.reservationSubmittedMessage}\n\n'
                     '${widget.locationName} · ${widget.spotLabel}\n'
-                    '${s.priceLabel}: ${price ?? '—'} KM'
+                    '${s.priceLabel}: ${price != null ? formatMoneyKmFromJson(price) : '—'}'
                 : '${widget.locationName} · ${widget.spotLabel}\n'
-                    '${s.priceLabel}: ${price ?? '—'} KM',
+                    '${s.priceLabel}: ${price != null ? formatMoneyKmFromJson(price) : '—'}',
           ),
           actions: [
             FilledButton(

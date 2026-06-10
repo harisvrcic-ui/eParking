@@ -69,13 +69,7 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
     super.dispose();
   }
 
-  bool _sameParkingLot(Reservation r) {
-    if (r.parkingLotId == widget.lotId) return true;
-    if (r.parkingLotId != 0) return false;
-    final lotName = r.parkingLotName.trim().toLowerCase();
-    final target = widget.lotName.trim().toLowerCase();
-    return lotName.isNotEmpty && lotName == target;
-  }
+  bool _sameParkingLot(Reservation r) => r.parkingLotId == widget.lotId;
 
   bool _reservationAllowsReview(Reservation r) {
     if (!_sameParkingLot(r)) return false;

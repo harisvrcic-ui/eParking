@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../core/api_client.dart';
+import '../utils/money.dart';
 import '../widgets/management_page_layout.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -67,8 +69,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   bool _inMonth(DateTime date, DateTime month) =>
       date.year == month.year && date.month == month.month;
 
-  double _sumRevenue(Iterable<Map<String, dynamic>> items) =>
-      items.fold<double>(0, (s, r) => s + ((r['finalPrice'] as num?)?.toDouble() ?? 0));
+  Decimal _sumRevenue(Iterable<Map<String, dynamic>> items) =>
+      items.fold(Decimal.zero, (s, r) => s + moneyFromJson(r['finalPrice']));
 
   String _reservationStatus(Map<String, dynamic> r) {
     final status = r['status']?.toString();
@@ -148,7 +150,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           pw.Header(level: 0, child: pw.Text('eParking — Mjesečni sažetak')),
           pw.Text('Datum izvještaja: ${DateFormat.yMMMd('bs').format(now)}'),
           pw.SizedBox(height: 12),
-          pw.Text('Ukupan prihod (ovaj mjesec): ${revenue.toStringAsFixed(2)} KM'),
+          pw.Text('Ukupan prihod (ovaj mjesec): ${formatMoneyKm(revenue)}'),
           pw.Text('Ukupno rezervacija (ovaj mjesec): ${thisMonthRes.length}'),
           pw.Text(
             'Novi korisnici (ovaj mjesec): '
@@ -167,7 +169,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 r['parkingLotName']?.toString() ?? '',
                 r['parkingSpotDisplayName']?.toString() ?? '',
                 _dateFormat.format(_parseDate(r['startDate'])),
-                '${(r['finalPrice'] as num?)?.toStringAsFixed(2) ?? '0'} KM',
+                formatMoneyKmFromJson(r['finalPrice']),
                 _reservationStatus(r),
               ];
             }).toList(),
@@ -187,7 +189,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     for (final r in _reservations) {
       final userId = r['userId'] as int? ?? 0;
       if (userId == 0) continue;
-      final price = (r['finalPrice'] as num?)?.toDouble() ?? 0;
+      final price = moneyFromJson(r['finalPrice']);
       final created = _parseDate(r['createdAt']);
       statsByUser.putIfAbsent(userId, () => _UserReservationStats()).add(price, created, monthStart);
     }
@@ -246,7 +248,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     r['email'],
                     '${r['total']}',
                     r['month'].toString(),
-                    (r['spent'] as double).toStringAsFixed(2),
+                    formatMoney(r['spent'] as Decimal),
                     r['active'],
                   ],
                 )
@@ -298,7 +300,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final revenue = _sumRevenue(thisMonthRes);
     final lastRevenue = _sumRevenue(lastMonthRes);
     final revenueDelta = revenue - lastRevenue;
-    final revenuePct = _percentChange(revenue, lastRevenue);
+    final revenuePct = _percentChange(revenue.toDouble(), lastRevenue.toDouble());
 
     final resCount = thisMonthRes.length;
     final lastResCount = lastMonthRes.length;
@@ -342,11 +344,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           children: [
                             _kpiCard(
                               'Ukupan prihod (ovaj mjesec)',
-                              '${revenue.toStringAsFixed(2)} KM',
+                              formatMoneyKm(revenue),
                               revenuePct,
-                              subtitle: revenueDelta >= 0
-                                  ? '+${revenueDelta.toStringAsFixed(2)} KM u odnosu na prošli mjesec'
-                                  : '${revenueDelta.toStringAsFixed(2)} KM u odnosu na prošli mjesec',
+                              subtitle: revenueDelta >= Decimal.zero
+                                  ? '+${formatMoney(revenueDelta)} KM u odnosu na prošli mjesec'
+                                  : '${formatMoney(revenueDelta)} KM u odnosu na prošli mjesec',
                             ),
                             _kpiCard(
                               'Ukupno rezervacija',
@@ -566,7 +568,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final created = _parseDate(r['createdAt']);
       final day = DateTime(created.year, created.month, created.day);
       if (!daily.containsKey(day)) continue;
-      daily[day] = (daily[day] ?? 0) + ((r['finalPrice'] as num?)?.toDouble() ?? 0);
+      daily[day] = (daily[day] ?? 0) + moneyFromJson(r['finalPrice']).toDouble();
     }
 
     final spots = daily.entries.toList();
@@ -901,7 +903,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           _cell(r['parkingLotName']?.toString() ?? ''),
                           _cell(r['parkingSpotDisplayName']?.toString() ?? ''),
                           _cell(_dateFormat.format(_parseDate(r['startDate']))),
-                          _cell('${(r['finalPrice'] as num?)?.toStringAsFixed(2) ?? '0'} KM'),
+                          _cell(formatMoneyKmFromJson(r['finalPrice'])),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             child: _statusBadge(status),
@@ -993,9 +995,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 class _UserReservationStats {
   int totalCount = 0;
   int monthCount = 0;
-  double totalSpent = 0;
+  Decimal totalSpent = Decimal.zero;
 
-  void add(double price, DateTime created, DateTime monthStart) {
+  void add(Decimal price, DateTime created, DateTime monthStart) {
     totalCount++;
     totalSpent += price;
     if (created.year == monthStart.year && created.month == monthStart.month) {

@@ -1,6 +1,8 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
+import '../utils/money.dart';
 import '../widgets/management_page_layout.dart';
 
 class _DashboardTile {
@@ -76,9 +78,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _api.getList('/Cities'),
       ]);
 
-      double revenue = 0;
+      var revenue = Decimal.zero;
       for (final r in results[5]) {
-        revenue += ((r as Map<String, dynamic>)['finalPrice'] as num?)?.toDouble() ?? 0;
+        revenue += moneyFromJson((r as Map<String, dynamic>)['finalPrice']);
       }
 
       _stats = {
@@ -104,7 +106,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _valueForTile(_DashboardTile tile) {
     final raw = _stats[tile.statKey];
     if (tile.isRevenue) {
-      return '${(raw as num? ?? 0).toStringAsFixed(2)} KM';
+      return formatMoneyKm(raw is Decimal ? raw : moneyFromJson(raw));
     }
     return '${raw ?? 0}';
   }

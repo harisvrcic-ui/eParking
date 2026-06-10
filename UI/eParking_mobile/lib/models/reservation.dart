@@ -1,3 +1,7 @@
+import 'package:decimal/decimal.dart';
+
+import '../utils/money.dart';
+
 class Reservation {
   final int id;
   final int parkingLotId;
@@ -7,7 +11,7 @@ class Reservation {
   final String licensePlate;
   final DateTime startDate;
   final DateTime endDate;
-  final double finalPrice;
+  final Decimal finalPrice;
   final DateTime createdAt;
   final String status;
   final String? statusNote;
@@ -37,7 +41,7 @@ class Reservation {
       licensePlate: json['licensePlate'] as String? ?? '',
       startDate: DateTime.parse(json['startDate'] as String),
       endDate: DateTime.parse(json['endDate'] as String),
-      finalPrice: (json['finalPrice'] as num?)?.toDouble() ?? 0,
+      finalPrice: moneyFromJson(json['finalPrice']),
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.parse(json['startDate'] as String),

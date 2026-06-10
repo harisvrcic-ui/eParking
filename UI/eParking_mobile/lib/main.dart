@@ -3,11 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/locale_controller.dart';
 import 'screens/login_screen.dart';
-import 'services/view_history_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ViewHistoryService.init();
   runApp(
     ListenableBuilder(
       listenable: LocaleController.instance,

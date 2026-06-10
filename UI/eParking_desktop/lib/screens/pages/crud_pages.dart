@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../utils/money.dart';
 import '../../widgets/generic_crud_page.dart';
 import '../../widgets/image_helpers.dart';
 import '../../widgets/management_page_layout.dart';
@@ -420,7 +421,7 @@ class _ReservationsPageState extends State<ReservationsPage> {
               Text(item['parkingSpotDisplayName']?.toString() ?? ''),
               Text(_fmtDate(item['startDate'])),
               Text(_fmtDate(item['endDate'])),
-              Text('${(item['finalPrice'] as num?)?.toStringAsFixed(2) ?? '0.00'} KM'),
+              Text(formatMoneyKmFromJson(item['finalPrice'])),
               _statusChip(status),
               _statusNoteCell(item),
             ],
@@ -905,7 +906,7 @@ class ReservationTypesPage extends StatelessWidget {
           cells: [
             Text(item['name']?.toString() ?? ''),
             Text(_billingUnitLabel(item['billingUnit'])),
-            Text('${(item['price'] as num?)?.toStringAsFixed(2) ?? '0.00'} KM'),
+            Text(formatMoneyKmFromJson(item['price'])),
           ],
           onEdit: onEdit,
           onDelete: onDelete,
@@ -924,7 +925,9 @@ class ReservationTypesPage extends StatelessWidget {
   static Future<void> _rtForm(BuildContext ctx, Map<String, dynamic>? item, ListReload reload) async {
     final api = ApiClient();
     final n = TextEditingController(text: item?['name']?.toString() ?? '');
-    final p = TextEditingController(text: '${item?['price'] ?? 0}');
+    final p = TextEditingController(
+      text: item?['price'] != null ? formatMoneyFromJson(item!['price']) : '0.00',
+    );
     var billingUnit = switch (item?['billingUnit']?.toString()) {
       'Daily' || '1' => 'Daily',
       _ => 'Hourly',
@@ -956,7 +959,7 @@ class ReservationTypesPage extends StatelessWidget {
       onSave: () async {
         final body = {
           'name': n.text.trim(),
-          'price': double.parse(p.text),
+          'price': moneyToApi(moneyFromText(p.text)),
           'billingUnit': billingUnit,
         };
         if (item == null) await api.post('/ReservationTypes', body);

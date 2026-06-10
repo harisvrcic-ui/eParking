@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../l10n/app_strings.dart';
@@ -176,7 +177,7 @@ class RecommendationEngine {
     return strings.hintTopPickDefault;
   }
 
-  /// Za bodovanje: GPS ako postoji, inače udaljenost od često korištenog parkinga.
+  /// Za bodovanje: GPS → udaljenost od čestog parkinga → koordinate (centar/demo flag).
   static double? _scoringDistanceKm({
     required ParkingLotOverview overview,
     required Position? userPosition,
@@ -215,7 +216,11 @@ class RecommendationEngine {
       );
     }
 
-    return LocationService.demoDistanceKmForParkir(overview.name);
+    return LocationService.resolveDistanceKm(
+      lotName: overview.name,
+      lotLatitude: overview.latitude,
+      lotLongitude: overview.longitude,
+    );
   }
 
   static int _scoreLot({
@@ -367,7 +372,7 @@ class _UserContentProfile {
     required List<ParkingSpotSummary> spots,
   }) {
     final reservationCountByLotId = <int, int>{};
-    final priceSamples = <double>[];
+    final priceSamples = <Decimal>[];
 
     for (final reservation in reservations) {
       if (reservation.parkingLotId <= 0) continue;
@@ -416,7 +421,8 @@ class _UserContentProfile {
 
     PriceTier? preferredPriceTier;
     if (priceSamples.isNotEmpty) {
-      final avg = priceSamples.reduce((a, b) => a + b) / priceSamples.length;
+      final sum = priceSamples.fold(Decimal.zero, (a, b) => a + b);
+      final avg = sum.toDouble() / priceSamples.length;
       preferredPriceTier =
           avg < 8 ? PriceTier.low : (avg > 15 ? PriceTier.high : PriceTier.mid);
     }

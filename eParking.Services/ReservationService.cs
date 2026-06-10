@@ -104,8 +104,8 @@ namespace eParking.Services
             var reservationType = await _context.ReservationTypes.FindAsync(request.ReservationTypeId)
                 ?? throw new NotFoundException($"ReservationType with id {request.ReservationTypeId} not found.");
 
-            var startUtc = ReservationTimeHelper.NormalizeToUtc(request.StartDate);
-            var endUtc = ReservationTimeHelper.NormalizeToUtc(request.EndDate);
+            var (startUtc, endUtc) = ReservationTimeHelper.NormalizeAndValidatePeriod(
+                request.StartDate, request.EndDate);
 
             await EnsureSpotAvailableAsync(request.ParkingSpotId, startUtc, endUtc);
             await EnsureNoDuplicateUserReservationAsync(car.UserId, startUtc, endUtc);
@@ -156,8 +156,8 @@ namespace eParking.Services
             if (!await _context.Cars.AnyAsync(c => c.Id == request.CarId))
                 throw new NotFoundException($"Car with id {request.CarId} not found.");
 
-            var startUtc = ReservationTimeHelper.NormalizeToUtc(request.StartDate);
-            var endUtc = ReservationTimeHelper.NormalizeToUtc(request.EndDate);
+            var (startUtc, endUtc) = ReservationTimeHelper.NormalizeAndValidatePeriod(
+                request.StartDate, request.EndDate);
 
             await EnsureSpotAvailableAsync(request.ParkingSpotId, startUtc, endUtc, request.Id);
 
@@ -302,9 +302,7 @@ namespace eParking.Services
         {
             var startUtc = ReservationTimeHelper.NormalizeToUtc(startDate);
             var endUtc = ReservationTimeHelper.NormalizeToUtc(endDate);
-
-            if (endUtc <= startUtc)
-                throw new BusinessException("End date must be after start date.");
+            ReservationTimeHelper.ValidateReservationPeriod(startUtc, endUtc);
 
             var blockingStatuses = new[] { (int)ReservationStatus.Pending, (int)ReservationStatus.Confirmed };
 

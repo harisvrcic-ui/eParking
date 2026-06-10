@@ -127,16 +127,16 @@ namespace eParking.Services
 
         public async Task<PagedResponse<ParkingSpotResponse>> GetAvailableAsync(ParkingSpotAvailabilitySearch search)
         {
-            if (search.EndDate <= search.StartDate)
-                throw new BusinessException("End date must be after start date.");
+            var (startUtc, endUtc) = ReservationTimeHelper.NormalizeAndValidatePeriod(
+                search.StartDate, search.EndDate);
 
             var blockingStatuses = new[] { (int)ReservationStatus.Pending, (int)ReservationStatus.Confirmed };
 
             var reservedSpotIds = await _context.Reservations
                 .Where(r =>
                     blockingStatuses.Contains(r.Status) &&
-                    r.StartDate < search.EndDate &&
-                    r.EndDate > search.StartDate)
+                    r.StartDate < endUtc &&
+                    r.EndDate > startUtc)
                 .Select(r => r.ParkingSpotId)
                 .Distinct()
                 .ToListAsync();

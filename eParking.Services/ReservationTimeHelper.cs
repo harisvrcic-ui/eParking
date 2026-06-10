@@ -59,4 +59,22 @@ public static class ReservationTimeHelper
         var e = ToUtcForCompare(end);
         return s <= now && e > now;
     }
+
+    /// <summary>Normalizacija + provjera da je period valjan i da početak nije u prošlosti.</summary>
+    public static (DateTime StartUtc, DateTime EndUtc) NormalizeAndValidatePeriod(DateTime start, DateTime end)
+    {
+        var startUtc = NormalizeToUtc(start);
+        var endUtc = NormalizeToUtc(end);
+        ValidateReservationPeriod(startUtc, endUtc);
+        return (startUtc, endUtc);
+    }
+
+    public static void ValidateReservationPeriod(DateTime startUtc, DateTime endUtc)
+    {
+        if (endUtc <= startUtc)
+            throw new BusinessException("End date must be after start date.");
+
+        if (startUtc < UtcNow)
+            throw new BusinessException("Reservation start time must not be in the past.");
+    }
 }

@@ -5,8 +5,11 @@ import '../models/reservation.dart';
 class ReservationService {
   final ApiClient _api = ApiClient();
 
-  Future<List<Reservation>> getMyReservations() async {
-    final data = await _api.getList('/Reservations');
+  Future<List<Reservation>> getMyReservations({required int userId}) async {
+    final data = await _api.getList(
+      '/Reservations',
+      query: {'userId': '$userId'},
+    );
     return data
         .map((e) => Reservation.fromJson(e as Map<String, dynamic>))
         .toList();

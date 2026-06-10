@@ -59,7 +59,18 @@ class RecommendationEngine {
       final lotSpots = spotsByLot[lot.id] ?? [];
       final features = _LotFeatures.fromSpots(lot.name, lotSpots);
 
-      final distanceKm = _effectiveDistanceKm(
+      final displayDistance = LocationService.resolveDistanceResult(
+        lotName: overview.name,
+        gpsKm: LocationService.distanceKmToLot(
+          lotName: overview.name,
+          userPosition: userPosition,
+          lotLatitude: overview.latitude,
+          lotLongitude: overview.longitude,
+        ),
+        lotLatitude: overview.latitude,
+        lotLongitude: overview.longitude,
+      );
+      final scoringDistanceKm = _scoringDistanceKm(
         overview: overview,
         userPosition: userPosition,
         frequentLot: frequentLot,
@@ -71,7 +82,7 @@ class RecommendationEngine {
         maxAvailableSpots: maxAvailableSpots,
         preferences: preferences,
         profile: profile,
-        distanceKm: distanceKm,
+        distanceKm: scoringDistanceKm,
         reservationCount: profile.reservationCountByLotId[lot.id] ?? 0,
         viewCount: viewCountByLotId[lot.id] ?? 0,
       );
@@ -80,7 +91,7 @@ class RecommendationEngine {
         lot: lot,
         features: features,
         availableSpots: overview.availableSpots,
-        distanceKm: distanceKm,
+        distance: displayDistance,
         score: score,
       );
     }).toList();
@@ -89,8 +100,8 @@ class RecommendationEngine {
       final byScore = b.score.compareTo(a.score);
       if (byScore != 0) return byScore;
       if (preferences.preferNearby) {
-        final da = a.distanceKm ?? double.infinity;
-        final db = b.distanceKm ?? double.infinity;
+        final da = a.distance.km ?? double.infinity;
+        final db = b.distance.km ?? double.infinity;
         return da.compareTo(db);
       }
       return a.lot.name.compareTo(b.lot.name);
@@ -133,9 +144,12 @@ class RecommendationEngine {
         lot: item.lot,
         availableSpots: item.availableSpots,
         locationLabel: '${item.lot.name} · ${item.features.cityZone}',
-        distanceLabel: item.distanceKm != null
-            ? LocationService.formatDistanceKm(item.distanceKm)
-            : '—',
+        distanceLabel: LocationService.formatDistanceLabel(
+          item.distance,
+          gpsSuffix: strings.distanceFromGps,
+          centerSuffix: strings.distanceFromCenter,
+        ),
+        distanceFromGps: item.distance.fromGps,
         badge: badge,
         badgeHint: hint,
         isPreferredName: badge == RecommendationBadge.topPick,
@@ -162,38 +176,43 @@ class RecommendationEngine {
     return strings.hintTopPickDefault;
   }
 
-  static double? _effectiveDistanceKm({
+  /// Za bodovanje: GPS ako postoji, inače udaljenost od često korištenog parkinga.
+  static double? _scoringDistanceKm({
     required ParkingLotOverview overview,
     required Position? userPosition,
     required ParkingLotOverview? frequentLot,
   }) {
-    final distances = <double>[];
-
-    final gpsKm = LocationService.distanceKmFromPosition(
+    final gpsKm = LocationService.distanceKmToLot(
+      lotName: overview.name,
       userPosition: userPosition,
       lotLatitude: overview.latitude,
       lotLongitude: overview.longitude,
     );
-    if (gpsKm != null) distances.add(gpsKm);
+    if (gpsKm != null) return gpsKm;
+
+    final lotCoords = LocationService.resolveLotCoordinates(
+      lotName: overview.name,
+      latitude: overview.latitude,
+      longitude: overview.longitude,
+    );
+    final frequentCoords = frequentLot == null
+        ? null
+        : LocationService.resolveLotCoordinates(
+            lotName: frequentLot.name,
+            latitude: frequentLot.latitude,
+            longitude: frequentLot.longitude,
+          );
 
     if (frequentLot != null &&
         frequentLot.id != overview.id &&
-        frequentLot.latitude != null &&
-        frequentLot.longitude != null &&
-        overview.latitude != null &&
-        overview.longitude != null) {
-      distances.add(
-        LocationService.distanceKm(
-          frequentLot.latitude!,
-          frequentLot.longitude!,
-          overview.latitude!,
-          overview.longitude!,
-        ),
+        frequentCoords != null &&
+        lotCoords != null) {
+      return LocationService.distanceKm(
+        frequentCoords.lat,
+        frequentCoords.lng,
+        lotCoords.lat,
+        lotCoords.lng,
       );
-    }
-
-    if (distances.isNotEmpty) {
-      return distances.reduce((a, b) => a < b ? a : b);
     }
 
     return LocationService.demoDistanceKmForParkir(overview.name);
@@ -221,10 +240,18 @@ class RecommendationEngine {
 
     switch (preferences.zonePreference) {
       case GeographicZonePreference.zona1Centar:
-        if (features.cityZone == 'Zona 1') score += 15;
+        if (features.cityZone == 'Zona 1') {
+          score += 25;
+        } else {
+          score -= 15;
+        }
         break;
       case GeographicZonePreference.zona2Periferija:
-        if (features.cityZone == 'Zona 2') score += 15;
+        if (features.cityZone == 'Zona 2') {
+          score += 25;
+        } else {
+          score -= 15;
+        }
         break;
       case GeographicZonePreference.any:
         break;
@@ -269,7 +296,10 @@ class _LotFeatures {
 
   factory _LotFeatures.fromSpots(String lotName, List<ParkingSpotSummary> spots) {
     final zone = spots.isNotEmpty && spots.first.zoneName.isNotEmpty
-        ? spots.first.zoneName
+        ? LocationService.resolveCityZone(
+            lotName: lotName,
+            spotZoneName: spots.first.zoneName,
+          )
         : LocationService.cityZoneForParkir(lotName);
 
     if (spots.isEmpty) {
@@ -357,8 +387,16 @@ class _UserContentProfile {
 
     final zoneByLotId = <int, String>{};
     for (final spot in spots) {
-      if (spot.zoneName.isEmpty) continue;
-      zoneByLotId.putIfAbsent(spot.parkingLotId, () => spot.zoneName);
+      final lotName = spot.parkingLotName.isNotEmpty
+          ? spot.parkingLotName
+          : spot.displayName ?? '';
+      zoneByLotId.putIfAbsent(
+        spot.parkingLotId,
+        () => LocationService.resolveCityZone(
+          lotName: lotName,
+          spotZoneName: spot.zoneName,
+        ),
+      );
     }
 
     String? preferredZone;
@@ -398,14 +436,14 @@ class _LotAnalysis {
   final ParkingLot lot;
   final _LotFeatures features;
   final int availableSpots;
-  final double? distanceKm;
+  final DistanceResult distance;
   final int score;
 
   _LotAnalysis({
     required this.lot,
     required this.features,
     required this.availableSpots,
-    this.distanceKm,
+    required this.distance,
     required this.score,
   });
 }

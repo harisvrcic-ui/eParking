@@ -76,15 +76,28 @@ class _SearchPageState extends State<SearchPage> {
       _userPosition = results[2] as Position?;
 
       _allItems = overviews.map((o) {
-        var km = LocationService.distanceKmFromPosition(
-          userPosition: _userPosition,
+        final distance = LocationService.resolveDistanceResult(
+          lotName: o.name,
+          gpsKm: LocationService.distanceKmToLot(
+            lotName: o.name,
+            userPosition: _userPosition,
+            lotLatitude: o.latitude,
+            lotLongitude: o.longitude,
+          ),
           lotLatitude: o.latitude,
           lotLongitude: o.longitude,
         );
-        km ??= LocationService.demoDistanceKmForParkir(o.name);
-        final distanceLabel =
-            km != null ? LocationService.formatDistanceKm(km) : '—';
-        return _SearchItem(overview: o, distanceLabel: distanceLabel);
+        final strings = AppStrings.current;
+        final distanceLabel = LocationService.formatDistanceLabel(
+          distance,
+          gpsSuffix: strings.distanceFromGps,
+          centerSuffix: strings.distanceFromCenter,
+        );
+        return _SearchItem(
+          overview: o,
+          distanceLabel: distanceLabel,
+          distanceFromGps: distance.fromGps,
+        );
       }).toList();
 
       _applyFilters();
@@ -198,6 +211,7 @@ class _SearchPageState extends State<SearchPage> {
                     return ParkingSearchCard(
                       overview: item.overview,
                       distanceLabel: item.distanceLabel,
+                      distanceFromGps: item.distanceFromGps,
                       onViewParking: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -293,8 +307,13 @@ class _SearchPageState extends State<SearchPage> {
 class _SearchItem {
   final ParkingLotOverview overview;
   final String distanceLabel;
+  final bool distanceFromGps;
 
-  _SearchItem({required this.overview, required this.distanceLabel});
+  _SearchItem({
+    required this.overview,
+    required this.distanceLabel,
+    required this.distanceFromGps,
+  });
 }
 
 class _FilterDropdown<T> extends StatelessWidget {

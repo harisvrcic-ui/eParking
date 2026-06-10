@@ -14,6 +14,7 @@ class ParkingLotDisplay {
   final int availableSpots;
   final String locationLabel;
   final String distanceLabel;
+  final bool distanceFromGps;
   final RecommendationBadge badge;
   final String? badgeHint;
   final bool isPreferredName;
@@ -23,6 +24,7 @@ class ParkingLotDisplay {
     required this.availableSpots,
     required this.locationLabel,
     required this.distanceLabel,
+    this.distanceFromGps = false,
     this.badge = RecommendationBadge.none,
     this.badgeHint,
     this.isPreferredName = false,

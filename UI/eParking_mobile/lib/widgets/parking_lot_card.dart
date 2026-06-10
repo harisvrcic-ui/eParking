@@ -58,13 +58,23 @@ class ParkingLotCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.location_on, size: 16, color: Colors.green.shade600),
+                Icon(
+                  item.distanceFromGps ? Icons.my_location : Icons.location_on,
+                  size: 16,
+                  color: item.distanceFromGps
+                      ? Colors.green.shade700
+                      : Colors.grey.shade600,
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     '${item.locationLabel} · ${item.distanceLabel}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade700,
+                      color: item.distanceFromGps
+                          ? Colors.green.shade800
+                          : Colors.grey.shade700,
+                      fontWeight:
+                          item.distanceFromGps ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),

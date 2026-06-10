@@ -93,7 +93,9 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
     try {
       final detail = await _parkingService.getParkingLotDetail(widget.lotId);
       final reviews = await _reviewService.getForParkingLot(widget.lotId);
-      final reservations = await _reservationService.getMyReservations();
+      final reservations = await _reservationService.getMyReservations(
+        userId: widget.userId,
+      );
       final favorite = await _favoriteService.findForLot(widget.lotId);
 
       Review? myReview;
@@ -108,15 +110,24 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
 
       String? distanceLabel;
       final pos = await _locationService.getCurrentPosition();
-      var km = LocationService.distanceKmFromPosition(
-        userPosition: pos,
+      final strings = AppStrings.current;
+      final distance = LocationService.resolveDistanceResult(
+        lotName: detail.name,
+        gpsKm: LocationService.distanceKmToLot(
+          lotName: detail.name,
+          userPosition: pos,
+          lotLatitude: detail.latitude,
+          lotLongitude: detail.longitude,
+        ),
         lotLatitude: detail.latitude,
         lotLongitude: detail.longitude,
       );
-      if (km != null && km > 500) km = null;
-      km ??= LocationService.demoDistanceKmForParkir(detail.name);
-      if (km != null) {
-        distanceLabel = LocationService.formatDistanceKm(km);
+      if (distance.km != null) {
+        distanceLabel = LocationService.formatDistanceLabel(
+          distance,
+          gpsSuffix: strings.distanceFromGps,
+          centerSuffix: strings.distanceFromCenter,
+        );
       }
 
       if (mounted) {

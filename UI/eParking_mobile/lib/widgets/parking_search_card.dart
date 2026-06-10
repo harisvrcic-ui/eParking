@@ -8,11 +8,13 @@ class ParkingSearchCard extends StatelessWidget {
     super.key,
     required this.overview,
     required this.distanceLabel,
+    this.distanceFromGps = false,
     this.onViewParking,
   });
 
   final ParkingLotOverview overview;
   final String distanceLabel;
+  final bool distanceFromGps;
   final VoidCallback? onViewParking;
 
   @override
@@ -43,13 +45,23 @@ class ParkingSearchCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.location_on, size: 16, color: Colors.green.shade600),
+                Icon(
+                  distanceFromGps ? Icons.my_location : Icons.location_on,
+                  size: 16,
+                  color: distanceFromGps
+                      ? Colors.green.shade700
+                      : Colors.grey.shade600,
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     '${overview.name} · $distanceLabel',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade700,
+                      color: distanceFromGps
+                          ? Colors.green.shade800
+                          : Colors.grey.shade700,
+                      fontWeight:
+                          distanceFromGps ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),

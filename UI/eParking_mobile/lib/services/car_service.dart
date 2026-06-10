@@ -18,12 +18,14 @@ class CarService {
   }
 
   Future<Car> createCar({
+    required int userId,
     required int brandId,
     required int colorId,
     required String model,
     required String licensePlate,
   }) async {
     final data = await _api.post('/Cars', {
+      'userId': userId,
       'brandId': brandId,
       'colorId': colorId,
       'model': model,
@@ -36,6 +38,7 @@ class CarService {
 
   Future<Car> updateCar({
     required int id,
+    required int userId,
     required int brandId,
     required int colorId,
     required String model,
@@ -44,6 +47,7 @@ class CarService {
   }) async {
     final data = await _api.put('/Cars/$id', {
       'id': id,
+      'userId': userId,
       'brandId': brandId,
       'colorId': colorId,
       'model': model,

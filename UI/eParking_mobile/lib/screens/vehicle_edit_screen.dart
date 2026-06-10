@@ -94,6 +94,7 @@ class _VehicleEditScreenState extends State<VehicleEditScreen> {
       if (widget.isEdit) {
         await _carService.updateCar(
           id: widget.carId!,
+          userId: widget.userId,
           brandId: _brandId!,
           colorId: _colorId!,
           model: _modelController.text.trim(),
@@ -102,6 +103,7 @@ class _VehicleEditScreenState extends State<VehicleEditScreen> {
         );
       } else {
         await _carService.createCar(
+          userId: widget.userId,
           brandId: _brandId!,
           colorId: _colorId!,
           model: _modelController.text.trim(),

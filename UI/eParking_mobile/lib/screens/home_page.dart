@@ -52,8 +52,14 @@ class _HomePageState extends State<HomePage> {
   List<NewsItem> _news = [];
   int _unreadNotifications = 0;
   Timer? _notificationPollTimer;
+  Timer? _gpsRetryTimer;
   bool _loading = true;
+  bool _gpsActive = false;
   String? _error;
+  List<dynamic>? _cachedOverviews;
+  List<dynamic>? _cachedSpots;
+  List<dynamic>? _cachedReservations;
+  List<dynamic>? _cachedViewHistory;
   @override
   void initState() {
     super.initState();
@@ -73,6 +79,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _notificationPollTimer?.cancel();
+    _gpsRetryTimer?.cancel();
     ParkingDataRefresh.tick.removeListener(_onParkingDataChanged);
     _searchController.dispose();
     super.dispose();
@@ -110,15 +117,12 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      Position? position;
-      try {
-        position = await _locationService.getCurrentPosition();
-      } catch (_) {}
+      final positionFuture = _locationService.getCurrentPosition();
 
       final results = await Future.wait([
         _parkingService.getParkingLotsOverview(),
         _parkingService.getParkingSpots(),
-        _reservationService.getMyReservations(),
+        _reservationService.getMyReservations(userId: widget.user.id),
         _viewHistoryApi.getMy(),
       ]);
 
@@ -127,26 +131,91 @@ class _HomePageState extends State<HomePage> {
       final reservations = results[2];
       final viewHistory = results[3];
 
-      _allLots = RecommendationEngine().buildDisplayList(
+      _applyParkingData(
         overviews: overviews.cast(),
         spots: spots.cast(),
-        user: widget.user,
-        preferences: widget.preferences,
         reservations: reservations.cast(),
-        viewCountByLotId: ParkingLotViewHistoryApiService.toViewCountByLotId(
-          viewHistory.cast(),
-        ),
-        userPosition: position,
+        viewHistory: viewHistory.cast(),
+        position: null,
       );
-      _applyFilter();
+
+      if (mounted) setState(() => _loading = false);
+
+      _cachedOverviews = overviews;
+      _cachedSpots = spots;
+      _cachedReservations = reservations;
+      _cachedViewHistory = viewHistory;
+
+      final position = await positionFuture;
+      if (!mounted) return;
+      setState(() {
+        _applyParkingData(
+          overviews: overviews.cast(),
+          spots: spots.cast(),
+          reservations: reservations.cast(),
+          viewHistory: viewHistory.cast(),
+          position: position,
+        );
+      });
+      if (!_gpsActive) {
+        _scheduleGpsRetry();
+      }
     } catch (e) {
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _lots = [];
+        _loading = false;
       });
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _applyParkingData({
+    required List overviews,
+    required List spots,
+    required List reservations,
+    required List viewHistory,
+    required Position? position,
+  }) {
+    _allLots = RecommendationEngine().buildDisplayList(
+      overviews: overviews.cast(),
+      spots: spots.cast(),
+      user: widget.user,
+      preferences: widget.preferences,
+      reservations: reservations.cast(),
+      viewCountByLotId: ParkingLotViewHistoryApiService.toViewCountByLotId(
+        viewHistory.cast(),
+      ),
+      userPosition: position,
+    );
+    _gpsActive = LocationService.hasGpsPosition(position);
+    if (_gpsActive) {
+      _gpsRetryTimer?.cancel();
+    }
+    _applyFilter();
+  }
+
+  void _scheduleGpsRetry() {
+    _gpsRetryTimer?.cancel();
+    _gpsRetryTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      _retryGpsUpdate();
+    });
+  }
+
+  Future<void> _retryGpsUpdate() async {
+    if (!mounted || _gpsActive || _cachedOverviews == null) return;
+
+    final position = await _locationService.getCurrentPosition();
+    if (!mounted || !LocationService.hasGpsPosition(position)) return;
+
+    setState(() {
+      _applyParkingData(
+        overviews: _cachedOverviews!,
+        spots: _cachedSpots!,
+        reservations: _cachedReservations!,
+        viewHistory: _cachedViewHistory!,
+        position: position,
+      );
+    });
   }
 
   void _applyFilter() {

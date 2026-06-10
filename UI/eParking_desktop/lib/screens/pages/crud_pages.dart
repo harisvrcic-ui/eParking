@@ -424,22 +424,29 @@ class _ReservationsPageState extends State<ReservationsPage> {
               _statusChip(status),
               _statusNoteCell(item),
             ],
-            extraActions: isPending
-                ? [
-                    _reservationActionIcon(
-                      icon: Icons.check_circle_outline,
-                      tooltip: 'Potvrdi',
-                      color: AppColors.activeGreen,
-                      onTap: () => _confirmReservation(pageContext, item, reload),
-                    ),
-                    _reservationActionIcon(
-                      icon: Icons.cancel_outlined,
-                      tooltip: 'Odbij',
-                      color: Colors.red.shade700,
-                      onTap: () => _rejectReservation(pageContext, item, reload),
-                    ),
-                  ]
-                : const [],
+            extraActions: [
+              if (isPending) ...[
+                _reservationActionIcon(
+                  icon: Icons.check_circle_outline,
+                  tooltip: 'Potvrdi',
+                  color: AppColors.activeGreen,
+                  onTap: () => _confirmReservation(pageContext, item, reload),
+                ),
+                _reservationActionIcon(
+                  icon: Icons.cancel_outlined,
+                  tooltip: 'Odbij',
+                  color: Colors.red.shade700,
+                  onTap: () => _rejectReservation(pageContext, item, reload),
+                ),
+              ],
+              if (status == 'Confirmed')
+                _reservationActionIcon(
+                  icon: Icons.replay,
+                  tooltip: 'Vrati na čekanje',
+                  color: Colors.orange.shade800,
+                  onTap: () => _revertToPending(pageContext, item, reload),
+                ),
+            ],
             onEdit: canModify ? onEdit : null,
             onDelete: canModify ? onDelete : null,
           );
@@ -514,6 +521,65 @@ class _ReservationsPageState extends State<ReservationsPage> {
         ),
       ),
     );
+  }
+
+  void _handleReservationReverted() {
+    if (_statusFilter == 'Confirmed') {
+      setState(() => _statusFilter = 'Pending');
+    }
+  }
+
+  Future<void> _revertToPending(
+    BuildContext ctx,
+    Map<String, dynamic> item,
+    ListReload reload,
+  ) async {
+    final id = item['id'] as int;
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        title: dialogTitleBar(dialogCtx, 'Vrati na čekanje'),
+        content: Text(
+          'Potvrđena rezervacija #$id bit će vraćena na status „Na čekanju" i ponovo zahtijevati potvrdu administratora.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Odustani'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Vrati na čekanje'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      final api = ApiClient();
+      await api.put('/Reservations', id, {
+        'id': id,
+        'carId': item['carId'],
+        'parkingSpotId': item['parkingSpotId'],
+        'reservationTypeId': item['reservationTypeId'],
+        'startDate': item['startDate'],
+        'endDate': item['endDate'],
+      });
+      _handleReservationReverted();
+      await reload();
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('Rezervacija #$id vraćena na čekanje.')),
+        );
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    }
   }
 
   static Future<void> _confirmReservation(
@@ -631,7 +697,7 @@ class _ReservationsPageState extends State<ReservationsPage> {
     return DateTime.parse(d.toString()).toString().substring(0, 16);
   }
 
-  static Future<void> _resForm(BuildContext ctx, Map<String, dynamic>? item, ListReload reload) async {
+  Future<void> _resForm(BuildContext ctx, Map<String, dynamic>? item, ListReload reload) async {
     final api = ApiClient();
     final cars = await loadLookup('/Cars');
     final spots = await loadLookup('/ParkingSpots');
@@ -651,6 +717,7 @@ class _ReservationsPageState extends State<ReservationsPage> {
     DateTime end = item != null ? DateTime.parse(item['endDate'].toString()) : DateTime.now().add(const Duration(hours: 2));
 
     final formKey = GlobalKey<FormState>();
+    final wasConfirmed = item?['status']?.toString() == 'Confirmed';
 
     await showDialog(
       context: ctx,
@@ -791,6 +858,7 @@ class _ReservationsPageState extends State<ReservationsPage> {
                     await api.post('/Reservations', body);
                   } else {
                     await api.put('/Reservations', item['id'] as int, {...body, 'id': item['id']});
+                    if (wasConfirmed) _handleReservationReverted();
                   }
                   await reload();
                   formKey.currentState?.reset();
@@ -800,7 +868,9 @@ class _ReservationsPageState extends State<ReservationsPage> {
                       SnackBar(
                         content: Text(item == null
                             ? 'Rezervacija je kreirana i ceka potvrdu administratora.'
-                            : 'Rezervacija je uspješno sačuvana.'),
+                            : wasConfirmed
+                                ? 'Rezervacija je sačuvana i vraćena na čekanje.'
+                                : 'Rezervacija je uspješno sačuvana.'),
                       ),
                     );
                   }

@@ -37,7 +37,7 @@ class _ReservationsPageState extends State<ReservationsPage> {
     });
 
     try {
-      final all = await _service.getMyReservations();
+      final all = await _service.getMyReservations(userId: widget.userId);
       setState(() {
         _active = all.where((r) => reservationIsNotEnded(r.endDate)).toList()
           ..sort((a, b) => a.startDate.compareTo(b.startDate));

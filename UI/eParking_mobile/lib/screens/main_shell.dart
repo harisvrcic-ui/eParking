@@ -6,6 +6,7 @@ import '../widgets/dialog_helpers.dart';
 import '../models/login_response.dart';
 import '../models/user_preferences.dart';
 import '../services/auth_service.dart';
+import '../services/location_service.dart';
 import '../services/preferences_service.dart';
 import 'home_page.dart';
 import 'profile_page.dart';
@@ -32,6 +33,7 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     AuthService.currentUser = widget.user;
     _loadPreferences();
+    LocationService().requestLocationPermission();
   }
 
   Future<void> _loadPreferences() async {

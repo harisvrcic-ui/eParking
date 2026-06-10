@@ -150,6 +150,9 @@ namespace eParking.Services
 
         private async Task ValidateReferencesAsync(int brandId, int colorId, int userId)
         {
+            if (userId < 1)
+                throw new BusinessException("User id is required.");
+
             if (!await _context.Brands.AnyAsync(b => b.Id == brandId))
                 throw new NotFoundException($"Brand with id {brandId} not found.");
 

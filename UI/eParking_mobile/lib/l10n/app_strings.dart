@@ -95,6 +95,11 @@ abstract class AppStrings {
   String get parkingLotsTitle;
   String get details;
   String get distance;
+  String get distanceFromGps;
+  String get distanceFromCenter;
+  String get gpsActiveBanner;
+  String get gpsInactiveBanner;
+  String get openLocationSettings;
   String get zonesInLot;
 
   String get profile;
@@ -379,6 +384,17 @@ class AppStringsBs extends AppStrings {
   String get details => 'Detalji';
   @override
   String get distance => 'Udaljenost';
+  @override
+  String get distanceFromGps => 'GPS';
+  @override
+  String get distanceFromCenter => 'centar';
+  @override
+  String get gpsActiveBanner => 'GPS lokacija aktivna — udaljenosti su od vas';
+  @override
+  String get gpsInactiveBanner =>
+      'GPS nije aktivan — udaljenost od centra Sarajeva';
+  @override
+  String get openLocationSettings => 'Uključi lokaciju u postavkama';
   @override
   String get zonesInLot => 'Zone u parkiralištu';
 
@@ -787,6 +803,17 @@ class AppStringsEn extends AppStrings {
   String get details => 'Details';
   @override
   String get distance => 'Distance';
+  @override
+  String get distanceFromGps => 'GPS';
+  @override
+  String get distanceFromCenter => 'center';
+  @override
+  String get gpsActiveBanner => 'GPS active — distances are from your location';
+  @override
+  String get gpsInactiveBanner =>
+      'GPS inactive — distance from Sarajevo city center';
+  @override
+  String get openLocationSettings => 'Enable location in settings';
   @override
   String get zonesInLot => 'Zones in this lot';
 

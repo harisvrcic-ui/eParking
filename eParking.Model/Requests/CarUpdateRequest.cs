@@ -14,7 +14,7 @@ namespace eParking.Model.Requests
         [Range(1, int.MaxValue)]
         public int ColorId { get; set; }
 
-        [Range(1, int.MaxValue)]
+        // Set by API from JWT for regular users; admin may supply explicitly.
         public int UserId { get; set; }
 
         [Required]

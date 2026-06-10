@@ -20,6 +20,22 @@ namespace eParking.Model
 
         public string NotificationQueue { get; set; } = string.Empty;
 
+        public string? NotificationDeadLetterQueue { get; set; }
+
+        public int MaxRetryAttempts { get; set; } = 3;
+
+        public int[] RetryBackoffSeconds { get; set; } = [5, 30, 120];
+
+        public string ResolveDeadLetterQueue()
+        {
+            if (!string.IsNullOrWhiteSpace(NotificationDeadLetterQueue))
+                return NotificationDeadLetterQueue;
+
+            return string.IsNullOrWhiteSpace(NotificationQueue)
+                ? "eparking.notifications.dlq"
+                : $"{NotificationQueue}.dlq";
+        }
+
     }
 
 }

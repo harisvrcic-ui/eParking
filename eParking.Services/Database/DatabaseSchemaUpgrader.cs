@@ -347,7 +347,10 @@ namespace eParking.Services.Database
                         ADD [BillingUnit] int NOT NULL CONSTRAINT [DF_ReservationTypes_BillingUnit] DEFAULT(0);
                     ALTER TABLE [dbo].[ReservationTypes] DROP CONSTRAINT [DF_ReservationTypes_BillingUnit];
                 END
+                """);
 
+            // Separate batch: SQL Server validates column names at compile time for the whole batch.
+            await context.Database.ExecuteSqlRawAsync("""
                 IF OBJECT_ID(N'[dbo].[ReservationTypes]', N'U') IS NOT NULL
                    AND COL_LENGTH('dbo.ReservationTypes', 'BillingUnit') IS NOT NULL
                 BEGIN

@@ -98,13 +98,14 @@ class RecommendationEngine {
     }).toList();
 
     displays.sort((a, b) {
-      final byScore = b.score.compareTo(a.score);
-      if (byScore != 0) return byScore;
       if (preferences.preferNearby) {
         final da = a.distance.km ?? double.infinity;
         final db = b.distance.km ?? double.infinity;
-        return da.compareTo(db);
+        final byDistance = da.compareTo(db);
+        if (byDistance != 0) return byDistance;
       }
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
       return a.lot.name.compareTo(b.lot.name);
     });
 
@@ -177,50 +178,61 @@ class RecommendationEngine {
     return strings.hintTopPickDefault;
   }
 
-  /// Za bodovanje: GPS → udaljenost od čestog parkinga → koordinate (centar/demo flag).
+  /// Za bodovanje: minimum dostupnih udaljenosti (demo, GPS, čest parking, centar).
   static double? _scoringDistanceKm({
     required ParkingLotOverview overview,
     required Position? userPosition,
     required ParkingLotOverview? frequentLot,
   }) {
+    final candidates = <double>[];
+
+    if (LocationService.useDemoDistances) {
+      final demo = LocationService.demoDistanceKmForParkir(overview.name);
+      if (demo != null) candidates.add(demo);
+    }
+
     final gpsKm = LocationService.distanceKmToLot(
       lotName: overview.name,
       userPosition: userPosition,
       lotLatitude: overview.latitude,
       lotLongitude: overview.longitude,
     );
-    if (gpsKm != null) return gpsKm;
+    if (gpsKm != null) candidates.add(gpsKm);
 
     final lotCoords = LocationService.resolveLotCoordinates(
       lotName: overview.name,
       latitude: overview.latitude,
       longitude: overview.longitude,
     );
-    final frequentCoords = frequentLot == null
-        ? null
-        : LocationService.resolveLotCoordinates(
-            lotName: frequentLot.name,
-            latitude: frequentLot.latitude,
-            longitude: frequentLot.longitude,
-          );
-
     if (frequentLot != null &&
         frequentLot.id != overview.id &&
-        frequentCoords != null &&
         lotCoords != null) {
-      return LocationService.distanceKm(
-        frequentCoords.lat,
-        frequentCoords.lng,
-        lotCoords.lat,
-        lotCoords.lng,
+      final frequentCoords = LocationService.resolveLotCoordinates(
+        lotName: frequentLot.name,
+        latitude: frequentLot.latitude,
+        longitude: frequentLot.longitude,
       );
+      if (frequentCoords != null) {
+        candidates.add(
+          LocationService.distanceKm(
+            frequentCoords.lat,
+            frequentCoords.lng,
+            lotCoords.lat,
+            lotCoords.lng,
+          ),
+        );
+      }
     }
 
-    return LocationService.resolveDistanceKm(
+    final centerKm = LocationService.resolveDistanceKm(
       lotName: overview.name,
       lotLatitude: overview.latitude,
       lotLongitude: overview.longitude,
     );
+    if (centerKm != null) candidates.add(centerKm);
+
+    if (candidates.isEmpty) return null;
+    return candidates.reduce((a, b) => a < b ? a : b);
   }
 
   static int _scoreLot({
@@ -381,9 +393,16 @@ class _UserContentProfile {
       priceSamples.add(reservation.finalPrice);
     }
 
+    final interestCountByLotId = Map<int, int>.from(reservationCountByLotId);
+    for (final entry in viewCountByLotId.entries) {
+      if (entry.key <= 0 || entry.value <= 0) continue;
+      interestCountByLotId[entry.key] =
+          (interestCountByLotId[entry.key] ?? 0) + entry.value;
+    }
+
     int? frequentLotId;
     var maxCount = 0;
-    for (final entry in reservationCountByLotId.entries) {
+    for (final entry in interestCountByLotId.entries) {
       if (entry.value > maxCount) {
         maxCount = entry.value;
         frequentLotId = entry.key;
@@ -405,9 +424,9 @@ class _UserContentProfile {
     }
 
     String? preferredZone;
-    if (reservationCountByLotId.isNotEmpty) {
+    if (interestCountByLotId.isNotEmpty) {
       final zoneVotes = <String, int>{};
-      for (final entry in reservationCountByLotId.entries) {
+      for (final entry in interestCountByLotId.entries) {
         final zone = zoneByLotId[entry.key];
         if (zone == null || zone.isEmpty) continue;
         zoneVotes[zone] = (zoneVotes[zone] ?? 0) + entry.value;

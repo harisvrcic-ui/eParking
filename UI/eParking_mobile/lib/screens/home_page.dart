@@ -447,15 +447,17 @@ class _HomePageState extends State<HomePage> {
                   return ParkingLotCard(
                     item: item,
                     onViewDetails: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ParkingLotDetailScreen(
-                            lotId: item.lot.id,
-                            lotName: item.lot.name,
-                            userId: widget.user.id,
-                          ),
-                        ),
-                      );
+                      Navigator.of(context)
+                          .push(
+                            MaterialPageRoute(
+                              builder: (_) => ParkingLotDetailScreen(
+                                lotId: item.lot.id,
+                                lotName: item.lot.name,
+                                userId: widget.user.id,
+                              ),
+                            ),
+                          )
+                          .then((_) => _load());
                     },
                   );
                 },

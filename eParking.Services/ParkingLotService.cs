@@ -1,4 +1,4 @@
-using eParking.Model.Requests;
+﻿using eParking.Model.Requests;
 using eParking.Model.Responses;
 using eParking.Model.SearchObjects;
 using eParking.Services.Database;
@@ -131,73 +131,29 @@ namespace eParking.Services
 
             foreach (var lot in lots)
             {
-                lot.NumberOfSpots = spots.Count(s => SpotBelongsToLot(s, lot));
+                lot.NumberOfSpots = spots.Count(s => SpotBelongsToLot(s, lot.Id));
             }
 
             if (persistChanges)
                 await _context.SaveChangesAsync();
         }
 
-        /// <summary>
-        /// Parkinzi su lokacije (DisplayNameSearch); zone su gradske (Zona 1 / Zona 2).
-        /// </summary>
-        private static bool SpotBelongsToLot(ParkingSpot spot, ParkingLot lot)
-            => SpotBelongsToLot(spot.DisplayNameSearch, spot.Zone?.ParkingLotId ?? 0, lot);
+        private static bool SpotBelongsToLot(ParkingSpot spot, int lotId)
+            => spot.Zone != null && spot.Zone.ParkingLotId == lotId;
 
-        private static bool SpotBelongsToLot(string? displayNameSearch, int zoneParkingLotId, ParkingLot lot)
-        {
-            var searchKey = GetParkirSearchKey(lot.Name);
-            if (searchKey != null)
-                return displayNameSearch == searchKey;
-
-            return zoneParkingLotId == lot.Id;
-        }
-
-        private static IQueryable<ParkingSpot> FilterSpotsForLot(IQueryable<ParkingSpot> query, ParkingLot lot)
-        {
-            query = query.Where(s => s.IsActive);
-            var searchKey = GetParkirSearchKey(lot.Name);
-            if (searchKey != null)
-                return query.Where(s => s.DisplayNameSearch == searchKey);
-
-            return query.Where(s => s.Zone.ParkingLotId == lot.Id);
-        }
+        private static IQueryable<ParkingSpot> FilterSpotsForLot(IQueryable<ParkingSpot> query, int lotId)
+            => query.Where(s => s.IsActive && s.Zone.ParkingLotId == lotId);
 
         private static IQueryable<ParkingSpot> FilterSpotsForLots(
             IQueryable<ParkingSpot> query,
-            IReadOnlyList<ParkingLot> lots)
+            IReadOnlyCollection<int> lotIds)
         {
-            query = query.Where(s => s.IsActive);
-            if (lots.Count == 0)
+            if (lotIds.Count == 0)
                 return query.Where(_ => false);
 
-            var lotIds = lots.Select(l => l.Id).ToList();
-            var searchKeys = lots
-                .Select(l => GetParkirSearchKey(l.Name))
-                .Where(k => k != null)
-                .Distinct()
-                .ToList();
-
-            return query.Where(s =>
-                lotIds.Contains(s.Zone.ParkingLotId) ||
-                (s.DisplayNameSearch != null && searchKeys.Contains(s.DisplayNameSearch)));
+            return query.Where(s => s.IsActive && lotIds.Contains(s.Zone.ParkingLotId));
         }
 
-        private static string? GetParkirSearchKey(string lotName)
-        {
-            if (lotName.Contains("Vijecnica", StringComparison.OrdinalIgnoreCase)
-                || lotName.Contains("Vijecnica", StringComparison.OrdinalIgnoreCase))
-                return "vijecnica";
-
-            if (lotName.Contains("Ba�car�ija", StringComparison.OrdinalIgnoreCase)
-                || lotName.Contains("Bascarsija", StringComparison.OrdinalIgnoreCase))
-                return "bascarsija";
-
-            if (lotName.Contains("aria", StringComparison.OrdinalIgnoreCase))
-                return "aria mall";
-
-            return null;
-        }
 
         public async Task<PagedResponse<ParkingLotOverviewResponse>> GetOverviewAsync(ParkingLotSearch? search = null)
         {
@@ -214,16 +170,17 @@ namespace eParking.Services
 
             var lots = await lotsQuery.OrderBy(l => l.Name).ToListAsync();
 
+            var lotIds = lots.Select(l => l.Id).ToList();
             var spotRows = lots.Count == 0
                 ? []
-                : await FilterSpotsForLots(_context.ParkingSpots.AsNoTracking(), lots)
-                    .Select(s => new { s.Id, s.DisplayNameSearch, s.Zone.ParkingLotId })
+                : await FilterSpotsForLots(_context.ParkingSpots.AsNoTracking(), lotIds)
+                    .Select(s => new { s.Id, LotId = s.Zone.ParkingLotId })
                     .ToListAsync();
 
             var overview = lots.Select(lot =>
             {
                 var lotSpotIds = spotRows
-                    .Where(r => SpotBelongsToLot(r.DisplayNameSearch, r.ParkingLotId, lot))
+                    .Where(r => r.LotId == lot.Id)
                     .Select(r => r.Id)
                     .ToList();
                 var available = lotSpotIds.Count(id => !reservedSpotIds.Contains(id));
@@ -258,7 +215,7 @@ namespace eParking.Services
 
             var reservedSpotIds = (await GetReservedSpotIdsNowAsync()).ToHashSet();
 
-            var spots = await FilterSpotsForLot(_context.ParkingSpots.AsNoTracking(), lot)
+            var spots = await FilterSpotsForLot(_context.ParkingSpots.AsNoTracking(), lot.Id)
                 .Include(s => s.Zone)
                 .Include(s => s.ParkingSpotType)
                 .OrderBy(s => s.Zone.Name)

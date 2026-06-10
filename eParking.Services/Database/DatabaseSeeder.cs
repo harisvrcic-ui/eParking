@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using eParking.Services.Database.Parking;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +22,7 @@ namespace eParking.Services.Database
             await DatabaseSchemaUpgrader.EnsureAccountEnhancementsAsync(context);
             await DatabaseSchemaUpgrader.EnsureDecimalMoneyColumnsAsync(context);
             await DatabaseSchemaUpgrader.EnsureReservationTypeBillingUnitAsync(context);
+            await DatabaseSchemaUpgrader.EnsureParkingSpotsLinkedViaZoneAsync(context);
             await BackfillReservationStatusesAsync(context);
             await SeedCountriesAsync(context, seedDate);
 
@@ -124,7 +125,7 @@ namespace eParking.Services.Database
                     new MyAppUser
                     {
                         FirstName = "Denis",
-                        LastName = "Mu�ic",
+                        LastName = "Muï¿½ic",
                         Email = "example1@gmail.com",
                         Username = "admin",
                         PasswordHash = adminHash,
@@ -257,7 +258,7 @@ namespace eParking.Services.Database
                         FinalPrice = 5.00m,
                         Status = (int)Model.ReservationStatus.Completed,
                         StatusChangedAt = seedDate,
-                        StatusNote = "Seed rezervacija (zavr�ena).",
+                        StatusNote = "Seed rezervacija (zavrï¿½ena).",
                         CreatedAt = seedDate
                     });
                     await context.SaveChangesAsync();
@@ -292,7 +293,7 @@ namespace eParking.Services.Database
                         UserId = userId,
                         ReservationId = reservationId == 0 ? null : reservationId,
                         Title = "Rezervacija potvrdena",
-                        Body = "Va�a rezervacija je uspje�no potvrdena.",
+                        Body = "Vaï¿½a rezervacija je uspjeï¿½no potvrdena.",
                         IsRead = false,
                         CreatedAt = seedDate
                     },
@@ -300,8 +301,8 @@ namespace eParking.Services.Database
                     {
                         UserId = harisId,
                         ReservationId = null,
-                        Title = "Dobrodo�li u eParking",
-                        Body = "Dodajte omiljene parkinge i pratite obavje�tenja ovdje.",
+                        Title = "Dobrodoï¿½li u eParking",
+                        Body = "Dodajte omiljene parkinge i pratite obavjeï¿½tenja ovdje.",
                         IsRead = false,
                         CreatedAt = seedDate
                     }
@@ -356,7 +357,7 @@ namespace eParking.Services.Database
                         UserId = harisId,
                         ParkingLotId = ariaId,
                         Rating = 4,
-                        Comment = "Sve ok, ali zna biti gu�va u �pici.",
+                        Comment = "Sve ok, ali zna biti guï¿½va u ï¿½pici.",
                         CreatedAt = seedDate
                     });
 
@@ -416,10 +417,7 @@ namespace eParking.Services.Database
                 ("Aria Mall", "aria mall", "aria mall", 100, false),
             };
 
-            var locationAsZoneNames = new[] { "Vijecnica", "Bascarsija", "Ba?ar�ija", "Aria Mall", "Aria mall" };
-
-            ParkingLot? centarLot = null;
-            ParkingLot? periferijaLot = null;
+            var locationAsZoneNames = new[] { "Vijecnica", "Bascarsija", "Ba?arï¿½ija", "Aria Mall", "Aria mall" };
 
             foreach (var def in parkinzi)
             {
@@ -447,49 +445,26 @@ namespace eParking.Services.Database
 
                 ApplyDefaultCoordinates(lot);
 
-                if (def.IsCentar)
-                    centarLot ??= lot;
-                else
-                    periferijaLot ??= lot;
-            }
-
-            centarLot ??= await context.ParkingLots.FirstAsync();
-            periferijaLot ??= centarLot;
-
-            var zona1 = await EnsureSingleCityZoneAsync(
-                context,
-                centarLot.Id,
-                "Zona 1",
-                "Centar grada (Vijecnica, Bascarsija).",
-                seedDate);
-            var zona2 = await EnsureSingleCityZoneAsync(
-                context,
-                periferijaLot.Id,
-                "Zona 2",
-                "Periferija (Aria Mall i �ire podrucje).",
-                seedDate);
-
-            await ConsolidateToTwoZonesAsync(
-                context,
-                zona1.Id,
-                zona2.Id,
-                centarLot.Id,
-                periferijaLot.Id,
-                seedDate);
-
-            foreach (var def in parkinzi)
-            {
-                var zoneId = def.IsCentar ? zona1.Id : zona2.Id;
+                var zoneName = def.IsCentar ? "Zona 1" : "Zona 2";
+                var zoneDescription = def.IsCentar
+                    ? $"Centar grada ({def.Name})."
+                    : $"Periferija ({def.Name}).";
+                var zone = await EnsureSingleCityZoneAsync(
+                    context,
+                    lot.Id,
+                    zoneName,
+                    zoneDescription,
+                    seedDate);
 
                 var allForParkir = await context.ParkingSpots
-                    .Where(s => s.DisplayNameSearch == def.Search)
+                    .Where(s => s.DisplayNameSearch == def.Search || s.Zone.ParkingLotId == lot.Id)
                     .OrderBy(s => s.Id)
                     .ToListAsync();
 
                 for (var i = 0; i < allForParkir.Count; i++)
                 {
                     var spot = allForParkir[i];
-                    spot.ZoneId = zoneId;
+                    spot.ZoneId = zone.Id;
                     spot.DisplayName = def.Name;
                     spot.DisplayNameSearch = def.Search;
                     spot.IsActive = i < def.TargetCount;
@@ -511,7 +486,7 @@ namespace eParking.Services.Database
                         {
                             ParkingNumber = maxNumber + i,
                             ParkingSpotTypeId = regularTypeId,
-                            ZoneId = zoneId,
+                            ZoneId = zone.Id,
                             DisplayName = def.Name,
                             DisplayNameSearch = def.Search,
                             IsActive = true,
@@ -523,10 +498,8 @@ namespace eParking.Services.Database
                     await context.SaveChangesAsync();
                 }
 
-                var lot = await FindParkingLotByKeyAsync(context, def.Key)
-                    ?? throw new InvalidOperationException($"Parking lot '{def.Name}' missing after consolidation.");
                 lot.NumberOfSpots = await context.ParkingSpots
-                    .CountAsync(s => s.IsActive && s.DisplayNameSearch == def.Search);
+                    .CountAsync(s => s.IsActive && s.Zone.ParkingLotId == lot.Id);
                 await context.SaveChangesAsync();
             }
 
@@ -586,12 +559,7 @@ namespace eParking.Services.Database
 
             foreach (var lot in allLots)
             {
-                lot.NumberOfSpots = allSpots.Count(s =>
-                    s.DisplayNameSearch != null
-                    && (
-                        string.Equals(s.DisplayName, lot.Name, StringComparison.OrdinalIgnoreCase)
-                        || (lot.Name.Contains("aria", StringComparison.OrdinalIgnoreCase)
-                            && s.DisplayNameSearch == "aria mall")));
+                lot.NumberOfSpots = allSpots.Count(s => s.Zone?.ParkingLotId == lot.Id);
             }
 
             await CleanupLegacyZonesAsync(context);
@@ -644,7 +612,7 @@ namespace eParking.Services.Database
         }
 
         /// <summary>
-        /// Fizi?ki bri�e neaktivne duplikate/legacy parkinge nakon spajanja referenci.
+        /// Fizi?ki briï¿½e neaktivne duplikate/legacy parkinge nakon spajanja referenci.
         /// </summary>
         private static async Task DeleteInactiveParkingLotsAsync(ParkingDbContext context)
         {
@@ -887,41 +855,6 @@ namespace eParking.Services.Database
             return zone;
         }
 
-        private static async Task ConsolidateToTwoZonesAsync(
-            ParkingDbContext context,
-            int zona1Id,
-            int zona2Id,
-            int centarLotId,
-            int periferijaLotId,
-            DateTime seedDate)
-        {
-            var keepIds = new[] { zona1Id, zona2Id };
-            var extraZones = await context.ParkingZones
-                .Where(z => z.IsActive && !keepIds.Contains(z.Id))
-                .Include(z => z.ParkingSpots)
-                .ToListAsync();
-
-            foreach (var zone in extraZones)
-            {
-                foreach (var spot in zone.ParkingSpots.Where(s => s.IsActive))
-                {
-                    var isCentar = spot.DisplayName != null
-                        && (spot.DisplayName.Contains("Vijecnica", StringComparison.OrdinalIgnoreCase)
-                            || spot.DisplayName.Contains("Bascarsija", StringComparison.OrdinalIgnoreCase)
-                            || spot.DisplayName.Contains("Bascar", StringComparison.OrdinalIgnoreCase)
-                            || spot.DisplayNameSearch == "vijecnica"
-                            || spot.DisplayNameSearch == "bascarsija");
-                    spot.ZoneId = isCentar ? zona1Id : zona2Id;
-                    spot.UpdatedAt = seedDate;
-                }
-
-                zone.IsActive = false;
-                zone.UpdatedAt = seedDate;
-            }
-
-            await context.SaveChangesAsync();
-        }
-
         private static async Task RenameLegacyZoneAsync(
             ParkingDbContext context,
             int lotId,
@@ -991,7 +924,7 @@ namespace eParking.Services.Database
 
         /// <summary>
         /// RS2 README nalozi: desktop/test (Admin), mobile/test (User).
-        /// Kreira korisnike ako ne postoje; lozinka se usklađuje u EnsureDevelopmentCredentialsAsync.
+        /// Kreira korisnike ako ne postoje; lozinka se usklaÄ‘uje u EnsureDevelopmentCredentialsAsync.
         /// </summary>
         public static async Task EnsureRs2StandardUsersAsync(ParkingDbContext context)
         {
@@ -1226,7 +1159,7 @@ namespace eParking.Services.Database
                 ("Cologne", "Germany"), ("Frankfurt", "Germany"),
                 ("Venice", "Italy"), ("Rome", "Italy"), ("Milan", "Italy"), ("Florence", "Italy"),
                 ("Turin", "Italy"),
-                ("Oslo", "Norway"), ("Bergen", "Norway"), ("Troms�", "Norway"),
+                ("Oslo", "Norway"), ("Bergen", "Norway"), ("Tromsï¿½", "Norway"),
                 ("Stavanger", "Norway"), ("Trondheim", "Norway"),
                 ("Lisbon", "Portugal"), ("Porto", "Portugal"), ("Faro", "Portugal"),
                 ("Coimbra", "Portugal"), ("Braga", "Portugal"),

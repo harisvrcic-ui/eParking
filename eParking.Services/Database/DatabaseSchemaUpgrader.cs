@@ -269,6 +269,74 @@ namespace eParking.Services.Database
                 """);
         }
 
+        /// <summary>
+        /// Ensures each parking spot belongs to its lot through Zone.ParkingLotId (not DisplayNameSearch).
+        /// </summary>
+        public static async Task EnsureParkingSpotsLinkedViaZoneAsync(ParkingDbContext context)
+        {
+            var lots = await context.ParkingLots
+                .Where(l => l.IsActive)
+                .OrderBy(l => l.Id)
+                .ToListAsync();
+
+            foreach (var lot in lots)
+            {
+                var zone = await context.ParkingZones
+                    .Where(z => z.ParkingLotId == lot.Id && z.IsActive)
+                    .OrderBy(z => z.Id)
+                    .FirstOrDefaultAsync();
+
+                if (zone == null)
+                {
+                    zone = new Parking.ParkingZone
+                    {
+                        ParkingLotId = lot.Id,
+                        Name = "Zona 1",
+                        Description = $"Zona za {lot.Name}",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    context.ParkingZones.Add(zone);
+                    await context.SaveChangesAsync();
+                }
+
+                var legacyKey = NormalizeParkingLotKeyForMigration(lot.Name);
+                if (legacyKey == null)
+                    continue;
+
+                var spotsToRelink = await context.ParkingSpots
+                    .Include(s => s.Zone)
+                    .Where(s => s.IsActive
+                        && (s.DisplayNameSearch == legacyKey
+                            || (s.Zone != null && s.Zone.ParkingLotId != lot.Id && s.DisplayNameSearch == legacyKey)))
+                    .ToListAsync();
+
+                foreach (var spot in spotsToRelink)
+                {
+                    spot.ZoneId = zone.Id;
+                    spot.DisplayName = lot.Name;
+                    spot.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await context.SaveChangesAsync();
+            }
+        }
+
+        private static string? NormalizeParkingLotKeyForMigration(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+
+            var normalized = name.Trim().ToLowerInvariant()
+                .Replace("\u010D", "c").Replace("\u0107", "c")
+                .Replace("\u0161", "s").Replace("\u017E", "z").Replace("\u0111", "d");
+
+            if (normalized.Contains("vijecnica")) return "vijecnica";
+            if (normalized.Contains("bascarsij") || normalized.Contains("bascar")) return "bascarsija";
+            if (normalized.Contains("aria")) return "aria mall";
+            return null;
+        }
+
         public static async Task EnsureReservationTypeBillingUnitAsync(ParkingDbContext context)
         {
             await context.Database.ExecuteSqlRawAsync("""

@@ -14,7 +14,7 @@ import '../services/parking_service.dart';
 import '../services/recommendation_engine.dart';
 import '../services/reservation_service.dart';
 import '../services/user_notification_service.dart';
-import '../services/view_history_service.dart';
+import '../services/parking_lot_view_history_api_service.dart';
 import '../l10n/app_strings.dart';
 import '../utils/search_text.dart';
 import '../widgets/news_image.dart';
@@ -45,6 +45,7 @@ class _HomePageState extends State<HomePage> {
   final _locationService = LocationService();
   final _newsService = NewsService();
   final _notificationService = UserNotificationService();
+  final _viewHistoryApi = ParkingLotViewHistoryApiService();
   final _searchController = TextEditingController();
 
   List<ParkingLotDisplay> _lots = [];
@@ -118,11 +119,13 @@ class _HomePageState extends State<HomePage> {
         _parkingService.getParkingLotsOverview(),
         _parkingService.getParkingSpots(),
         _reservationService.getMyReservations(),
+        _viewHistoryApi.getMy(),
       ]);
 
       final overviews = results[0];
       final spots = results[1];
       final reservations = results[2];
+      final viewHistory = results[3];
 
       _allLots = RecommendationEngine().buildDisplayList(
         overviews: overviews.cast(),
@@ -130,7 +133,9 @@ class _HomePageState extends State<HomePage> {
         user: widget.user,
         preferences: widget.preferences,
         reservations: reservations.cast(),
-        viewCountByLotId: ViewHistoryService.viewCountByLotId(),
+        viewCountByLotId: ParkingLotViewHistoryApiService.toViewCountByLotId(
+          viewHistory.cast(),
+        ),
         userPosition: position,
       );
       _applyFilter();

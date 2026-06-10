@@ -5,8 +5,16 @@ import 'package:geolocator/geolocator.dart';
 import '../utils/search_text.dart';
 
 class LocationService {
-  /// Demo udaljenosti za parkinze u Sarajevu (emulator / prezentacija).
+  /// Uključuje hardkodirane demo udaljenosti samo za prezentacije (`--dart-define=USE_DEMO_DISTANCES=true`).
+  static const bool useDemoDistances = bool.fromEnvironment(
+    'USE_DEMO_DISTANCES',
+    defaultValue: false,
+  );
+
+  /// Demo udaljenosti za parkinze u Sarajevu (samo kad je [useDemoDistances] uključen).
   static double? demoDistanceKmForParkir(String lotName) {
+    if (!useDemoDistances) return null;
+
     final n = lotName.toLowerCase();
     if (n.contains('aria')) return 5.0;
     if (n.contains('vije') || n.contains('vijecnica')) return 8.0;
@@ -14,12 +22,29 @@ class LocationService {
     return null;
   }
 
-  /// Prvo poznati parkir, inače GPS udaljenost.
+  /// GPS udaljenost; demo vrijednosti samo iza [useDemoDistances].
   static double? resolveDistanceKm({
     required String lotName,
     double? gpsKm,
   }) {
-    return demoDistanceKmForParkir(lotName) ?? gpsKm;
+    return gpsKm ?? demoDistanceKmForParkir(lotName);
+  }
+
+  static double? distanceKmFromPosition({
+    required Position? userPosition,
+    required double? lotLatitude,
+    required double? lotLongitude,
+  }) {
+    if (userPosition == null || lotLatitude == null || lotLongitude == null) {
+      return null;
+    }
+
+    return distanceKm(
+      userPosition.latitude,
+      userPosition.longitude,
+      lotLatitude,
+      lotLongitude,
+    );
   }
 
   /// Parkinzi nemaju grad u nazivu — mapiranje za filter pretrage.

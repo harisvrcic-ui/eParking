@@ -37,7 +37,7 @@ class RecommendationEngine {
     final profile = _UserContentProfile.fromHistory(
       reservations: reservations,
       viewCountByLotId: viewCountByLotId,
-      overviews: overviews,
+      spots: spots,
     );
 
     ParkingLotOverview? frequentLot;
@@ -167,23 +167,14 @@ class RecommendationEngine {
     required Position? userPosition,
     required ParkingLotOverview? frequentLot,
   }) {
-    final demo = LocationService.demoDistanceKmForParkir(overview.name);
-    if (demo != null) return demo;
-
     final distances = <double>[];
 
-    if (userPosition != null &&
-        overview.latitude != null &&
-        overview.longitude != null) {
-      distances.add(
-        LocationService.distanceKm(
-          userPosition.latitude,
-          userPosition.longitude,
-          overview.latitude!,
-          overview.longitude!,
-        ),
-      );
-    }
+    final gpsKm = LocationService.distanceKmFromPosition(
+      userPosition: userPosition,
+      lotLatitude: overview.latitude,
+      lotLongitude: overview.longitude,
+    );
+    if (gpsKm != null) distances.add(gpsKm);
 
     if (frequentLot != null &&
         frequentLot.id != overview.id &&
@@ -201,8 +192,11 @@ class RecommendationEngine {
       );
     }
 
-    if (distances.isEmpty) return null;
-    return distances.reduce((a, b) => a < b ? a : b);
+    if (distances.isNotEmpty) {
+      return distances.reduce((a, b) => a < b ? a : b);
+    }
+
+    return LocationService.demoDistanceKmForParkir(overview.name);
   }
 
   static int _scoreLot({
@@ -340,44 +334,46 @@ class _UserContentProfile {
   factory _UserContentProfile.fromHistory({
     required List<Reservation> reservations,
     required Map<int, int> viewCountByLotId,
-    required List<ParkingLotOverview> overviews,
+    required List<ParkingSpotSummary> spots,
   }) {
-    final byLotName = <String, int>{};
+    final reservationCountByLotId = <int, int>{};
     final priceSamples = <double>[];
 
-    for (final r in reservations) {
-      final name = r.parkingLotName;
-      if (name.isEmpty) continue;
-      byLotName[name] = (byLotName[name] ?? 0) + 1;
-      priceSamples.add(r.finalPrice);
+    for (final reservation in reservations) {
+      if (reservation.parkingLotId <= 0) continue;
+      reservationCountByLotId[reservation.parkingLotId] =
+          (reservationCountByLotId[reservation.parkingLotId] ?? 0) + 1;
+      priceSamples.add(reservation.finalPrice);
     }
 
     int? frequentLotId;
     var maxCount = 0;
-    for (final o in overviews) {
-      final c = byLotName[o.name] ?? 0;
-      if (c > maxCount) {
-        maxCount = c;
-        frequentLotId = o.id;
+    for (final entry in reservationCountByLotId.entries) {
+      if (entry.value > maxCount) {
+        maxCount = entry.value;
+        frequentLotId = entry.key;
       }
     }
 
-    final reservationCountByLotId = <int, int>{};
-    for (final o in overviews) {
-      final c = byLotName[o.name] ?? 0;
-      if (c > 0) reservationCountByLotId[o.id] = c;
+    final zoneByLotId = <int, String>{};
+    for (final spot in spots) {
+      if (spot.zoneName.isEmpty) continue;
+      zoneByLotId.putIfAbsent(spot.parkingLotId, () => spot.zoneName);
     }
 
     String? preferredZone;
-    if (byLotName.isNotEmpty) {
+    if (reservationCountByLotId.isNotEmpty) {
       final zoneVotes = <String, int>{};
-      for (final entry in byLotName.entries) {
-        final z = LocationService.cityZoneForParkir(entry.key);
-        zoneVotes[z] = (zoneVotes[z] ?? 0) + entry.value;
+      for (final entry in reservationCountByLotId.entries) {
+        final zone = zoneByLotId[entry.key];
+        if (zone == null || zone.isEmpty) continue;
+        zoneVotes[zone] = (zoneVotes[zone] ?? 0) + entry.value;
       }
-      preferredZone = zoneVotes.entries
-          .reduce((a, b) => a.value >= b.value ? a : b)
-          .key;
+      if (zoneVotes.isNotEmpty) {
+        preferredZone = zoneVotes.entries
+            .reduce((a, b) => a.value >= b.value ? a : b)
+            .key;
+      }
     }
 
     PriceTier? preferredPriceTier;

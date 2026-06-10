@@ -10,4 +10,12 @@ class ParkingLotViewHistoryApiService {
         .map((e) => ParkingLotViewHistoryEntry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  static Map<int, int> toViewCountByLotId(
+    List<ParkingLotViewHistoryEntry> entries,
+  ) {
+    return {
+      for (final entry in entries) entry.parkingLotId: entry.viewCount,
+    };
+  }
 }

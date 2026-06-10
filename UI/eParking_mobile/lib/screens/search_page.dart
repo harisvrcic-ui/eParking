@@ -76,18 +76,12 @@ class _SearchPageState extends State<SearchPage> {
       _userPosition = results[2] as Position?;
 
       _allItems = overviews.map((o) {
-        double? km = LocationService.demoDistanceKmForParkir(o.name);
-        if (km == null &&
-            _userPosition != null &&
-            o.latitude != null &&
-            o.longitude != null) {
-          km = LocationService.distanceKm(
-            _userPosition!.latitude,
-            _userPosition!.longitude,
-            o.latitude!,
-            o.longitude!,
-          );
-        }
+        var km = LocationService.distanceKmFromPosition(
+          userPosition: _userPosition,
+          lotLatitude: o.latitude,
+          lotLongitude: o.longitude,
+        );
+        km ??= LocationService.demoDistanceKmForParkir(o.name);
         final distanceLabel =
             km != null ? LocationService.formatDistanceKm(km) : '—';
         return _SearchItem(overview: o, distanceLabel: distanceLabel);

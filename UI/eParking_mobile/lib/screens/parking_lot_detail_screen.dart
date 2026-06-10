@@ -107,21 +107,14 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
       final canReview = reservations.any(_reservationAllowsReview);
 
       String? distanceLabel;
-      var km = LocationService.demoDistanceKmForParkir(detail.name);
-      if (km == null) {
-        final pos = await _locationService.getCurrentPosition();
-        if (pos != null &&
-            detail.latitude != null &&
-            detail.longitude != null) {
-          km = LocationService.distanceKm(
-            pos.latitude,
-            pos.longitude,
-            detail.latitude!,
-            detail.longitude!,
-          );
-          if (km > 500) km = null;
-        }
-      }
+      final pos = await _locationService.getCurrentPosition();
+      var km = LocationService.distanceKmFromPosition(
+        userPosition: pos,
+        lotLatitude: detail.latitude,
+        lotLongitude: detail.longitude,
+      );
+      if (km != null && km > 500) km = null;
+      km ??= LocationService.demoDistanceKmForParkir(detail.name);
       if (km != null) {
         distanceLabel = LocationService.formatDistanceKm(km);
       }

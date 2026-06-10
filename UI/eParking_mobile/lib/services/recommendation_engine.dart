@@ -235,6 +235,14 @@ class RecommendationEngine {
     return candidates.reduce((a, b) => a < b ? a : b);
   }
 
+  static String? _explicitZone(GeographicZonePreference preference) {
+    return switch (preference) {
+      GeographicZonePreference.zona1Centar => 'Zona 1',
+      GeographicZonePreference.zona2Periferija => 'Zona 2',
+      GeographicZonePreference.any => null,
+    };
+  }
+
   static int _scoreLot({
     required _LotFeatures features,
     required int availableSpots,
@@ -274,8 +282,12 @@ class RecommendationEngine {
         break;
     }
 
-    // Slične lokacije iz historije (ista zona / cjenovni rang)
-    if (profile.preferredZone != null && profile.preferredZone == features.cityZone) {
+    final wantedZone = _explicitZone(preferences.zonePreference);
+
+    // Implicitna zona iz historije samo kad korisnik nije eksplicitno birao zonu.
+    if (wantedZone == null &&
+        profile.preferredZone != null &&
+        profile.preferredZone == features.cityZone) {
       score += 12;
     }
     if (profile.preferredPriceTier != null &&
@@ -283,9 +295,15 @@ class RecommendationEngine {
       score += 8;
     }
 
-    // Historija rezervacija i pregleda
-    score += reservationCount * 6;
-    score += viewCount * 3;
+    // Historija ne smije nadjačati eksplicitnu zonu (npr. Zona 2 → Aria, ne Baščaršija).
+    var historyReservations = reservationCount;
+    var historyViews = viewCount;
+    if (wantedZone != null && features.cityZone != wantedZone) {
+      historyReservations = 0;
+      historyViews = 0;
+    }
+    score += historyReservations * 6;
+    score += historyViews * 3;
 
     // Prostorna analiza
     if (preferences.preferNearby && distanceKm != null) {
